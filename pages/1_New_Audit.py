@@ -316,8 +316,8 @@ if st.session_state.get("audit_running") and not st.session_state.get("audit_com
             st.session_state["audit_error"] = detail
             st.rerun()
 
-        if phase == "Complete" and status == "completed":
-            st.session_state["audit_result"] = msg.get("result", {})
+        if phase == "Complete" and status == "completed" and "result" in msg:
+            st.session_state["audit_result"] = msg["result"]
             st.session_state["audit_complete"] = True
             st.session_state["audit_running"] = False
             done = True

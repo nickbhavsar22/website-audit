@@ -324,7 +324,7 @@ class Orchestrator:
         report.strategic_friction = strategic_friction
 
         if self.progress_callback:
-            self.progress_callback(phase="Complete", status="completed", detail="Audit finished")
+            self.progress_callback(phase="Synthesis", status="completed", detail="Audit pipeline finished")
 
         return report
 
