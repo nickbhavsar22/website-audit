@@ -65,6 +65,10 @@ from utils.brand import inject_brand_css
 
 inject_brand_css()
 
+from utils.auth import check_password
+if not check_password():
+    st.stop()
+
 # ---------------------------------------------------------------------------
 # Sidebar
 # ---------------------------------------------------------------------------

@@ -16,6 +16,10 @@ st.set_page_config(page_title="View Reports", page_icon="\U0001f4ca", layout="wi
 from utils.brand import inject_brand_css
 inject_brand_css()
 
+from utils.auth import check_password
+if not check_password():
+    st.stop()
+
 st.header("Audit Reports")
 
 clients_dir = PROJECT_ROOT / "clients"

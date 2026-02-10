@@ -7,6 +7,7 @@ import sys
 import time
 import queue
 import asyncio
+import tempfile
 import threading
 from pathlib import Path
 from datetime import datetime
@@ -45,6 +46,10 @@ st.set_page_config(page_title="New Audit", page_icon="\U0001f680", layout="wide"
 
 from utils.brand import inject_brand_css
 inject_brand_css()
+
+from utils.auth import check_password
+if not check_password():
+    st.stop()
 
 # ---------------------------------------------------------------------------
 # Phase-to-progress mapping
@@ -199,6 +204,13 @@ def _run_audit(config: dict, max_pages: int, progress_queue: queue.Queue):
                 "business_impact": friction.business_impact,
             }
 
+        # Write HTML to a temp file instead of session_state (too large for Cloud)
+        tmp = tempfile.NamedTemporaryFile(
+            mode="w", suffix=".html", delete=False, encoding="utf-8"
+        )
+        tmp.write(html_content)
+        tmp.close()
+
         result_data = {
             "company_name": report.company_name,
             "overall_percentage": round(report.overall_percentage, 1),
@@ -207,7 +219,7 @@ def _run_audit(config: dict, max_pages: int, progress_queue: queue.Queue):
             "modules": modules,
             "quick_wins": quick_wins,
             "friction": friction_data,
-            "html_content": html_content,
+            "html_file": tmp.name,
         }
 
         progress_queue.put({
@@ -375,8 +387,16 @@ if st.session_state.get("audit_complete"):
             for i, w in enumerate(wins, 1):
                 st.markdown(f"**{i}.** {w}")
 
-        # Full HTML report
-        html_content = result.get("html_content", "")
+        # Full HTML report (read from temp file to avoid session_state size limits)
+        html_file = result.get("html_file", "")
+        html_content = ""
+        if html_file:
+            try:
+                with open(html_file, "r", encoding="utf-8") as f:
+                    html_content = f.read()
+            except FileNotFoundError:
+                st.info("Report file was cleaned up. Download is unavailable, but scores above are preserved.")
+
         if html_content:
             st.subheader("Full Report")
             components.html(html_content, height=2000, scrolling=True)
