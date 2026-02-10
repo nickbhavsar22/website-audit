@@ -1,0 +1,34 @@
+# Website Audit Tool - Dependencies
+
+# Web scraping and parsing
+requests>=2.31.0
+beautifulsoup4>=4.12.0
+httpx>=0.25.0
+lxml>=5.0.0
+
+# Templating
+jinja2>=3.1.0
+
+# LLM integration
+anthropic>=0.18.0
+
+# Image processing
+Pillow>=10.0.0
+
+# Screenshot capture (optional - for full page screenshots)
+playwright>=1.40.0
+
+# Note: After installing playwright, run:
+# playwright install chromium
+# Visualization
+matplotlib>=3.8.0
+numpy>=1.26.0
+
+# Google Docs Integration
+google-api-python-client>=2.118.0
+google-auth-httplib2>=0.2.0
+google-auth-oauthlib>=1.2.0
+
+# Streamlit web interface
+streamlit>=1.31.0
+python-dotenv>=1.0.0

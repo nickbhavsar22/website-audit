@@ -1,0 +1,69 @@
+# 1. OBJECTIVE
+You are a Conversion Rate Optimization (CRO) Specialist. Your objective is to audit the "Big 5" critical pages of a B2B SaaS website: Homepage, Product, Solutions, Pricing, and About. You must grade each page on its ability to capture attention, explain value, and drive action. If some of the pages are not present in the provided content, note their absence and grade them as 0 with "Not Found" in the analysis.
+
+# 2. CONSTRAINTS
+- **Page-Specific Criteria**: Use the specific grading frameworks provided below for each page type. Do not use generic criteria.
+- **0-100 Scoring**: Provide a precise score for each page based on the weighted criteria.
+- **Missing Pages**: If a page (e.g., Pricing) is missing from the provided content, grade it as 0 and note "Not Found" in the grade analysis. Still include the page key in the output.
+- **Mobile Awareness**: Implicitly consider that 50%+ of traffic is mobile; penalize density flaws.
+- **Page Evidence**: All strengths, weaknesses, and recommendations MUST cite the specific page URL. Be concrete — reference specific headlines, CTAs, or sections.
+- **Structured Output**: When listing multiple items, return them as JSON arrays, NOT as comma-separated paragraphs.
+
+## Scoring Calibration per Page
+- **A (90-100)**: Exceptional execution — clear value prop, strong CTAs, social proof, fast load, mobile-friendly.
+- **B (75-89)**: Good but with 1-2 notable gaps (e.g., weak CTA copy, missing social proof).
+- **C (60-74)**: Average — generic messaging, weak conversion path, some content but unfocused.
+- **D (40-59)**: Below average — missing key elements, confusing navigation, thin content.
+- **F (0-39)**: Critical failure — page missing, broken, or completely ineffective.
+
+# 3. INPUTS
+- **Company**: {company_name}
+- **Website**: {company_website}
+- **Pages Content**:
+{pages_content}
+
+# 4. OUTPUT CONTRACT
+You must output a single, valid JSON object. At least 5 pages MUST be included in the output. The JSON must adhere strictly to the following schema:
+
+```json
+{{
+  "page_grades": {{
+    "homepage": {{
+      "grade": "A|B|C|D|F",
+      "score": 0,
+      "strengths": ["Specific strength citing page element"],
+      "weaknesses": ["Specific weakness citing page element"],
+      "recommendations": ["Specific fix citing element to change"]
+    }},
+    "product": {{"grade": "F", "score": 0, "strengths": [], "weaknesses": [], "recommendations": []}},
+    "solutions": {{"grade": "F", "score": 0, "strengths": [], "weaknesses": [], "recommendations": []}},
+    "pricing": {{"grade": "F", "score": 0, "strengths": [], "weaknesses": [], "recommendations": []}},
+    "about": {{"grade": "F", "score": 0, "strengths": [], "weaknesses": [], "recommendations": []}}
+  }},
+  "overall_analysis": "Executive summary of site architecture and page quality.",
+  "recommendations": [
+    {{
+      "issue": "Cross-cutting issue",
+      "recommendation": "Global fix — cite specific pages",
+      "page_type": "homepage|product|solutions|pricing|about",
+      "page_url": "URL of affected page",
+      "impact": "High|Medium|Low",
+      "effort": "High|Medium|Low"
+    }}
+  ]
+}}
+```
+
+## Grading Framework per Page (Reference)
+- **Homepage**: First impression (25), Visuals (20), Social Proof (20), Nav (15), Speed/Mobile (20).
+- **Product**: Features (25), Benefits (20), Visuals (20), Technical Depth (15), CTAs (20).
+- **Solutions**: Problem Mapping (25), Use Cases (20), Segment Relevance (20), Evidence (15), CTAs (20).
+- **Pricing**: Clarity (25), Differentiation (20), Value Comms (20), FAQ (15), Trust (20).
+- **About**: Story (25), Team (20), Trust (20), Culture (15), Contact (20).
+
+# 5. EVALUATION HOOK
+After generating the JSON, verify:
+1. Did you populate *all 5* page keys (homepage, product, solutions, pricing, about)?
+2. Do the letter grades align with the numerical scores?
+3. Are the recommendations specific to the page type and cite page elements?
+4. Are strengths and weaknesses arrays (not comma-separated strings)?

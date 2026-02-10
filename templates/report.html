@@ -1,0 +1,1211 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Strategic Audit: {{ company_name }}</title>
+    <style>
+        :root {
+            --primary: #0f172a;
+            --secondary: #3b82f6;
+            --accent: #6366f1;
+            --success: #22c55e;
+            --warning: #eab308;
+            --danger: #ef4444;
+            --bg-gray: #f8fafc;
+            --card-bg: #ffffff;
+            --text-main: #334155;
+            --text-light: #64748b;
+        }
+
+        .approve-btn {
+            background: var(--secondary);
+            color: white;
+            border: none;
+            padding: 0.4rem 0.8rem;
+            border-radius: 0.4rem;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .approve-btn:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+        }
+
+        .approve-btn.approved {
+            background: var(--success);
+        }
+
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+
+        body {
+            font-family: 'Inter', sans-serif;
+            color: var(--text-main);
+            background: var(--bg-gray);
+            line-height: 1.6;
+            margin: 0;
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        /* Modern Cover */
+        .cover {
+            background: linear-gradient(120deg, var(--primary) 0%, #1e293b 100%);
+            color: white;
+            padding: 5rem 3rem;
+            border-radius: 1rem;
+            margin-bottom: 3rem;
+            text-align: center;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+
+        .cover h1 {
+            font-size: 3rem;
+            margin-bottom: 0.5rem;
+            letter-spacing: -0.025em;
+        }
+
+        .cover .subtitle {
+            font-size: 1.5rem;
+            color: #94a3b8;
+            margin-bottom: 2rem;
+            font-weight: 400;
+        }
+
+        .logos {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+
+        .logo-box {
+            background: white;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            height: 60px;
+            display: flex;
+            align-items: center;
+        }
+
+        .logo-box img {
+            max-height: 40px;
+        }
+
+        /* Table of Contents */
+        .toc {
+            background: white;
+            padding: 2rem;
+            border-radius: 1rem;
+            margin-bottom: 3rem;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .toc h2 {
+            margin-top: 0;
+            font-size: 1.3rem;
+        }
+
+        .toc-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            columns: 2;
+        }
+
+        .toc-list li {
+            padding: 0.4rem 0;
+        }
+
+        .toc-list a {
+            color: var(--secondary);
+            text-decoration: none;
+            font-size: 0.95rem;
+        }
+
+        .toc-list a:hover {
+            text-decoration: underline;
+        }
+
+        /* Strategic Friction Point (The "Lead Consultant" Insight) */
+        .strategic-friction {
+            background: #fff;
+            border-left: 5px solid var(--danger);
+            padding: 2rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            margin-bottom: 3rem;
+        }
+
+        .strategic-friction h2 {
+            display: flex;
+            align-items: center;
+            color: var(--danger);
+            margin-top: 0;
+            font-size: 1.5rem;
+        }
+
+        .strategic-friction h2::before {
+            content: "\26A0\FE0F";
+            margin-right: 0.75rem;
+        }
+
+        .friction-content {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 2rem;
+        }
+
+        .business-impact-box {
+            background: #fef2f2;
+            padding: 1.5rem;
+            border-radius: 0.5rem;
+            border: 1px solid #fecaca;
+        }
+
+        /* Campaign Brief */
+        .campaign-brief {
+            background: #fff;
+            border-left: 5px solid var(--accent);
+            padding: 2rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            margin-bottom: 3rem;
+        }
+
+        .campaign-brief h2 {
+            display: flex;
+            align-items: center;
+            color: var(--accent);
+            margin-top: 0;
+            font-size: 1.5rem;
+        }
+
+        .campaign-brief h2::before {
+            content: "\1F3AF";
+            margin-right: 0.75rem;
+        }
+
+        .brief-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+        }
+
+        .brief-item h4 {
+            margin-top: 0;
+            margin-bottom: 0.5rem;
+            color: var(--text-light);
+            text-transform: uppercase;
+            font-size: 0.8rem;
+            letter-spacing: 0.05em;
+        }
+
+        .priority-badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 1rem;
+            font-weight: bold;
+            font-size: 0.85rem;
+            color: white;
+        }
+
+        .business-impact-box h4 {
+            color: #991b1b;
+            margin-top: 0;
+            margin-bottom: 0.5rem;
+        }
+
+        /* Executive Summary Boxes */
+        .exec-summary {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin-bottom: 3rem;
+        }
+
+        .strengths-box,
+        .gaps-box {
+            background: white;
+            padding: 2rem;
+            border-radius: 1rem;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .strengths-box {
+            border-top: 4px solid var(--success);
+        }
+
+        .gaps-box {
+            border-top: 4px solid var(--danger);
+        }
+
+        .strengths-box h3,
+        .gaps-box h3 {
+            margin-top: 0;
+        }
+
+        .strengths-box ul,
+        .gaps-box ul {
+            padding-left: 1.2rem;
+        }
+
+        .strengths-box li,
+        .gaps-box li {
+            padding: 0.3rem 0;
+            font-size: 0.95rem;
+        }
+
+        /* 2x2 Matrix */
+        .matrix-section {
+            background: white;
+            padding: 2rem;
+            border-radius: 1rem;
+            margin-bottom: 3rem;
+        }
+
+        .matrix-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 50px 1fr 1fr;
+            gap: 1rem;
+            height: 600px;
+            position: relative;
+        }
+
+        .matrix-quadrant {
+            border: 1px solid var(--text-light);
+            padding: 1rem;
+            overflow-y: auto;
+            border-radius: 0.5rem;
+        }
+
+        .quadrant-quick-wins {
+            grid-row: 2;
+            grid-column: 2;
+            background: #f0fdf4;
+            border-color: #86efac;
+        }
+
+        .quadrant-strategic {
+            grid-row: 2;
+            grid-column: 1;
+            background: #eff6ff;
+            border-color: #bfdbfe;
+        }
+
+        .quadrant-low-hanging {
+            grid-row: 3;
+            grid-column: 2;
+            background: #fff7ed;
+            border-color: #fed7aa;
+        }
+
+        .quadrant-distraction {
+            grid-row: 3;
+            grid-column: 1;
+            background: #f9fafb;
+            border-color: #e5e7eb;
+            color: #9ca3af;
+        }
+
+        .matrix-label-y {
+            grid-row: 2 / 4;
+            grid-column: 1 / 3;
+            position: absolute;
+            left: -30px;
+            top: 50%;
+            transform: rotate(-90deg) translateX(50%);
+            transform-origin: left;
+            font-weight: bold;
+            color: var(--text-light);
+        }
+
+        .matrix-label-x {
+            grid-row: 1;
+            grid-column: 1 / 3;
+            display: flex;
+            justify-content: space-between;
+            align-items: end;
+            padding: 0 10%;
+            font-weight: bold;
+            color: var(--text-light);
+        }
+
+        .rec-card {
+            background: white;
+            padding: 1rem 1.25rem;
+            margin-bottom: 0.75rem;
+            border-radius: 0.5rem;
+            font-size: 0.95rem;
+            line-height: 1.5;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+            border-left: 3px solid transparent;
+        }
+
+        .rec-card.quick-win {
+            border-left-color: var(--success);
+        }
+
+        .rec-card.strategic {
+            border-left-color: var(--secondary);
+        }
+
+        .evidence-link {
+            color: var(--secondary);
+            font-size: 0.85rem;
+            text-decoration: none;
+            word-break: break-all;
+        }
+
+        .evidence-link:hover {
+            text-decoration: underline;
+        }
+
+        /* Consulting Outcome Badges */
+        .outcome-badge {
+            display: inline-block;
+            padding: 0.5rem 1.5rem;
+            border-radius: 2rem;
+            font-weight: bold;
+            color: white;
+            font-size: 1.1rem;
+            margin-bottom: 1rem;
+        }
+
+        /* Detailed Scores */
+        .module-section {
+            background: white;
+            margin-bottom: 3rem;
+            border-radius: 1rem;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .module-header {
+            padding: 2rem;
+            background: var(--bg-gray);
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .module-header h2 {
+            margin: 0;
+        }
+
+        .score-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .score-table th {
+            text-align: left;
+            padding: 1rem 1.5rem;
+            background: #f8fafc;
+            color: var(--text-light);
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .score-table td {
+            padding: 1.25rem 1.5rem;
+            border-bottom: 1px solid #f1f5f9;
+            vertical-align: top;
+            font-size: 0.95rem;
+        }
+
+        .score-table tbody tr:nth-child(even) {
+            background: #fafbfc;
+        }
+
+        .score-table tbody tr:hover {
+            background: #f1f5f9;
+        }
+
+        .business-impact {
+            display: block;
+            margin-top: 0.5rem;
+            font-size: 0.9rem;
+            color: #991b1b;
+            background: #fef2f2;
+            padding: 0.5rem;
+            border-radius: 0.25rem;
+        }
+
+        /* Module Recommendations */
+        .module-recs {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        .module-rec-card {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.5rem;
+            padding: 1.25rem;
+            font-size: 0.95rem;
+        }
+
+        .module-rec-card .rec-issue {
+            margin-bottom: 0.5rem;
+        }
+
+        .module-rec-card .rec-action {
+            margin-bottom: 0.5rem;
+        }
+
+        .module-rec-card .rec-page a {
+            color: var(--secondary);
+            font-size: 0.85rem;
+            text-decoration: none;
+        }
+
+        .module-rec-card .rec-impact {
+            margin-top: 0.5rem;
+            color: #991b1b;
+            font-size: 0.9rem;
+        }
+
+        .impact-badge,
+        .effort-badge {
+            display: inline-block;
+            padding: 0.15rem 0.6rem;
+            border-radius: 1rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-top: 0.5rem;
+            margin-right: 0.3rem;
+        }
+
+        .impact-badge.impact-high {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .impact-badge.impact-medium {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .impact-badge.impact-low {
+            background: #e0e7ff;
+            color: #3730a3;
+        }
+
+        .effort-badge.effort-high {
+            background: #fce7f3;
+            color: #9d174d;
+        }
+
+        .effort-badge.effort-medium {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .effort-badge.effort-low {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        /* Critical Pages Section */
+        .critical-page-card {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .page-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .page-header h3 {
+            margin: 0;
+        }
+
+        .grade-badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 1rem;
+            font-weight: bold;
+            font-size: 0.85rem;
+            color: white;
+        }
+
+        .grade-badge.grade-a {
+            background: #15803d;
+        }
+
+        .grade-badge.grade-b {
+            background: #84cc16;
+        }
+
+        .grade-badge.grade-c {
+            background: #eab308;
+        }
+
+        .grade-badge.grade-d {
+            background: #f97316;
+        }
+
+        .grade-badge.grade-f {
+            background: #ef4444;
+        }
+
+        .page-screenshot {
+            max-width: 100%;
+            border-radius: 0.5rem;
+            border: 1px solid #e2e8f0;
+            margin: 1rem 0;
+        }
+
+        .page-findings {
+            margin-top: 1rem;
+        }
+
+        /* Segments Section */
+        .segment-card {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .segment-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.75rem;
+        }
+
+        .segment-header h3 {
+            margin: 0;
+        }
+
+        .coverage-bar {
+            width: 120px;
+            height: 8px;
+            background: #e2e8f0;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .coverage-fill {
+            height: 100%;
+            border-radius: 4px;
+        }
+
+        .segment-pain-points {
+            margin-top: 0.5rem;
+        }
+
+        .segment-pages {
+            margin-top: 0.5rem;
+            font-size: 0.85rem;
+            color: var(--text-light);
+        }
+
+        /* JTBD & Messaging House */
+        .framework-visual {
+            margin: 2rem;
+            background: #f8fafc;
+            border: 2px dashed #cbd5e1;
+            padding: 2rem;
+            border-radius: 0.5rem;
+        }
+
+        .messaging-house {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .roof {
+            width: 100%;
+            text-align: center;
+            background: var(--primary);
+            color: white;
+            padding: 1rem;
+            clip-path: polygon(50% 0%, 100% 100%, 0% 100%);
+            margin-bottom: -1rem;
+            padding-bottom: 2rem;
+        }
+
+        .pillars {
+            display: flex;
+            gap: 1rem;
+            width: 100%;
+        }
+
+        .pillar {
+            flex: 1;
+            background: white;
+            border: 1px solid #cbd5e1;
+            padding: 1rem;
+            text-align: center;
+            border-radius: 0.25rem;
+        }
+
+        .foundation {
+            width: 100%;
+            background: #e2e8f0;
+            padding: 1rem;
+            text-align: center;
+            border-radius: 0.25rem;
+            font-weight: bold;
+        }
+
+        /* Markdown rendered content */
+        .module-section ul,
+        .module-section ol {
+            padding-left: 1.5rem;
+            margin: 0.5rem 0;
+        }
+
+        .module-section li {
+            padding: 0.15rem 0;
+        }
+
+        .print-break {
+            page-break-before: always;
+        }
+
+        /* Print styles */
+        @media print {
+            body {
+                padding: 0;
+                background: white;
+            }
+
+            .cover {
+                box-shadow: none;
+            }
+
+            .module-section {
+                box-shadow: none;
+                break-inside: avoid;
+            }
+
+            .matrix-section {
+                break-inside: avoid;
+            }
+
+            .critical-page-card {
+                break-inside: avoid;
+            }
+
+            .module-rec-card {
+                break-inside: avoid;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <div class="cover">
+            {% if client_logo %}
+            <div class="logos">
+                <div class="logo-box"><img src="{{ client_logo }}" alt="Client"></div>
+                <div class="logo-box"><img src="{{ analyst_logo }}" alt="Analyst"></div>
+            </div>
+            {% endif %}
+            <h1>Strategic Marketing Audit</h1>
+            <div class="subtitle">Prepared for {{ company_name }}</div>
+            <div class="outcome-badge" style="background-color: {{ outcome_color }}; transform: scale(1.5);">
+                {{ overall_outcome }}
+            </div>
+            <p style="margin-top: 2rem; opacity: 0.8;">{{ audit_date }} | {{ analyst_company }}</p>
+        </div>
+
+        <!-- Table of Contents -->
+        <div class="toc">
+            <h2>Table of Contents</h2>
+            <ul class="toc-list">
+                {% if strategic_friction %}<li><a href="#strategic-friction">Strategic Friction Point</a></li>{% endif
+                %}
+                {% if primary_segment %}<li><a href="#campaign-brief">Campaign Brief</a></li>{% endif %}
+                <li><a href="#exec-summary">Executive Summary</a></li>
+                <li><a href="#prioritization">Prioritization Matrix</a></li>
+                {% for module in modules %}
+                <li><a href="#module-{{ loop.index }}">{{ module.name }}</a></li>
+                {% endfor %}
+                {% if critical_pages %}<li><a href="#critical-pages">Top 5 Critical Pages</a></li>{% endif %}
+                {% if identified_segments %}<li><a href="#segments">Target Segments</a></li>{% endif %}
+            </ul>
+        </div>
+
+        {% if primary_segment %}
+        <div class="campaign-brief" id="campaign-brief">
+            <h2>Recommended Campaign Brief</h2>
+            <div class="brief-grid">
+                <div class="brief-item">
+                    <h4>Primary Target Segment</h4>
+                    <p style="font-size: 1.25rem; font-weight: 600; margin-bottom: 1rem;">{{ primary_segment }}</p>
+
+                    <h4>Justification</h4>
+                    <p>{{ primary_segment_justification }}</p>
+                </div>
+                <div class="brief-item">
+                    <h4>Campaign Priority</h4>
+                    <span class="priority-badge"
+                        style="background-color: {% if primary_segment_priority == 'High' %}var(--danger){% elif primary_segment_priority == 'Medium' %}var(--warning){% else %}var(--success){% endif %};">
+                        {{ primary_segment_priority }}
+                    </span>
+
+                    <h4 style="margin-top: 1.5rem;">Recommended Start Date</h4>
+                    <p>{{ audit_date }}</p>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if strategic_friction %}
+        <div class="strategic-friction" id="strategic-friction">
+            <h2>Strategic Friction Point: {{ strategic_friction.title }}</h2>
+            <div class="friction-content">
+                <div>
+                    <h3>Diagnosis</h3>
+                    <p>{{ strategic_friction.description }}</p>
+                    <p><strong>Primary Symptom:</strong> {{ strategic_friction.primary_symptom }}</p>
+                </div>
+                <div class="business-impact-box">
+                    <h4>Business Impact</h4>
+                    <p>{{ strategic_friction.business_impact }}</p>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Deep Research & Context -->
+        {% if deep_research and deep_research.raw_data %}
+        <div class="module-section print-break">
+            <div class="module-header" style="background: linear-gradient(to right, #f1f5f9, #e2e8f0);">
+                <h2>Company Context & Deep Research</h2>
+            </div>
+            <div style="padding: 2rem;">
+                <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 2rem;">
+                    <div>
+                        <h3>Market Position</h3>
+                        <p>{{ deep_research.raw_data.market_position or "N/A" }}</p>
+
+                        <h3>Background</h3>
+                        <p>{{ deep_research.raw_data.background or "N/A" }}</p>
+
+                        <strong>Funding/Stage:</strong> {{ deep_research.raw_data.funding_status }}
+                    </div>
+                    <div
+                        style="background: #f8fafc; padding: 1.5rem; border-radius: 0.5rem; border: 1px solid #e2e8f0;">
+                        <h4 style="margin-top:0">Target Audience (ICP)</h4>
+                        <p><strong>Primary:</strong> {{ deep_research.raw_data.icp.primary }}</p>
+                        <strong>Key Industries:</strong>
+                        <ul>
+                            {% for ind in deep_research.raw_data.icp.industries %}
+                            <li>{{ ind }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Executive Summary -->
+        <div class="exec-summary" id="exec-summary">
+            <div class="strengths-box">
+                <h3>Top Strengths</h3>
+                <ul>
+                    {% for strength in top_strengths %}
+                    <li>{{ strength }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            <div class="gaps-box">
+                <h3>Critical Gaps</h3>
+                <ul>
+                    {% for gap in critical_gaps %}
+                    <li>{{ gap }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+
+        <!-- 2x2 Matrix -->
+        <div class="matrix-section print-break" id="prioritization">
+            <h2>Prioritization Matrix</h2>
+            <p style="margin-bottom: 2rem;">We prioritize actions based on <strong>Business Impact</strong> vs.
+                <strong>Implementation Effort</strong>.
+            </p>
+
+            <div class="matrix-grid">
+                <div class="matrix-label-x">
+                    <span>High Effort</span>
+                    <span>Low Effort</span>
+                </div>
+                <div class="matrix-label-y">
+                    Low Impact -------------------- High Impact
+                </div>
+
+                <!-- Quadrants -->
+                <div class="matrix-quadrant quadrant-strategic">
+                    <h4 style="color: var(--secondary)">Strategic Bets (High Impact, High Effort)</h4>
+                    {% for rec in matrix_recommendations['Strategic Bet'] %}
+                    <div class="rec-card strategic">
+                        <strong>{{ rec.category }}</strong><br>
+                        {{ rec.recommendation | markdown_to_html }}
+                        {% if rec.page_url %}<br><a href="{{ rec.page_url }}" class="evidence-link">&rarr; {{
+                            rec.page_url }}</a>{% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <div class="matrix-quadrant quadrant-quick-wins">
+                    <h4 style="color: var(--success)">Quick Wins (High Impact, Low Effort)</h4>
+                    {% for rec in matrix_recommendations['Quick Win'] %}
+                    <div class="rec-card quick-win">
+                        <strong>{{ rec.category }}</strong><br>
+                        {{ rec.recommendation | markdown_to_html }}
+                        {% if rec.page_url %}<br><a href="{{ rec.page_url }}" class="evidence-link">&rarr; {{
+                            rec.page_url }}</a>{% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <div class="matrix-quadrant quadrant-distraction">
+                    <h4>Distractions (Low Impact, High Effort)</h4>
+                    {% for rec in matrix_recommendations['Distraction'] %}
+                    <div class="rec-card">
+                        {{ rec.recommendation | markdown_to_html }}
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <div class="matrix-quadrant quadrant-low-hanging">
+                    <h4 style="color: var(--warning)">Low Hanging Fruit (Low Impact, Low Effort)</h4>
+                    {% for rec in matrix_recommendations['Low Hanging Fruit'] %}
+                    <div class="rec-card">
+                        {{ rec.recommendation | markdown_to_html }}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Detailed Modules -->
+        {% for module in modules %}
+        <div class="module-section print-break" id="module-{{ loop.index }}"
+            style="border-left: 4px solid {{ module.outcome_color }};">
+            <div class="module-header">
+                <div>
+                    <h2>{{ module.name }}</h2>
+                    <div style="color: var(--text-light);">{{ module.actual_points }}/{{ module.max_points }} Points
+                    </div>
+                </div>
+                <div class="outcome-badge" style="background-color: {{ module.outcome_color }}">
+                    {{ module.outcome.value }}
+                </div>
+            </div>
+
+            <div style="padding: 2rem;">
+                <h3>Executive Analysis</h3>
+                {{ module.analysis_text | markdown_to_html }}
+
+                <!-- JTBD Visualization for Positioning Module -->
+                {% if module.name == "Positioning & Messaging" and module.raw_data.jtbd_analysis %}
+                <div class="framework-visual">
+                    <h4 style="margin-top:0">Jobs to be Done (JTBD) Analysis & Asset Manifest</h4>
+                    <table class="score-table">
+                        <thead>
+                            <tr>
+                                <th width="20%">Job Type</th>
+                                <th width="40%">Description</th>
+                                <th width="40%">Recommended Asset Types</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>Functional Job</strong></td>
+                                <td>{{ module.raw_data.jtbd_analysis.functional_job or "Not clearly defined" }}</td>
+                                <td rowspan="2">
+                                    {% if module.raw_data.jtbd_analysis.recommended_assets %}
+                                    <ul style="margin:0; padding-left: 1.2rem;">
+                                        {% for asset in module.raw_data.jtbd_analysis.recommended_assets %}
+                                        <li style="margin-bottom: 0.5rem;">
+                                            <strong>{{ asset.type }}</strong>: {{ asset.description }}
+                                        </li>
+                                        {% endfor %}
+                                    </ul>
+                                    {% else %}
+                                    <span style="color: var(--text-light)">No specific assets recommended.</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><strong>Emotional Job</strong></td>
+                                <td>{{ module.raw_data.jtbd_analysis.emotional_job or "Not clearly defined" }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                {% endif %}
+
+                <!-- Prompt Visibility Visualization -->
+                {% if module.name == "prompt_visibility" and module.raw_data.results %}
+                <div class="framework-visual">
+                    <h4 style="margin-top:0">Share of Voice in LLMs</h4>
+                    <table class="score-table">
+                        <thead>
+                            <tr>
+                                <th>User Question</th>
+                                <th>Brand Rank</th>
+                                <th>Top Competitor</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for res in module.raw_data.results %}
+                            {% set client_rank = res.rankings | selectattr("name", "equalto", company_name) | first %}
+                            {% set top_comp = res.rankings | selectattr("mentioned") | first %}
+                            <tr>
+                                <td>{{ res.question }}</td>
+                                <td>
+                                    {% if client_rank and client_rank.mentioned %}
+                                    {% if client_rank.rank <= 3 %} <span class="grade-badge grade-a">#{{
+                                        client_rank.rank }}</span>
+                                        {% else %}
+                                        <span class="grade-badge grade-c">#{{ client_rank.rank }}</span>
+                                        {% endif %}
+                                        {% else %}
+                                        <span class="grade-badge grade-f">Not Found</span>
+                                        {% endif %}
+                                </td>
+                                <td>
+                                    {% if top_comp %}{{ top_comp.name }}{% else %}<span style="color:#aaa">No clear
+                                        leader</span>{% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% endif %}
+
+                <!-- Social Listening Feed -->
+                {% if module.name == "social_listening" and module.raw_data.mentions %}
+                <div style="margin-top: 2rem;">
+                    <h3>Recent Mentions</h3>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        {% for mention in module.raw_data.mentions %}
+                        <div style="border: 1px solid #e2e8f0; padding: 1rem; border-radius: 0.5rem; background: #fff;">
+                            <div
+                                style="display: flex; justify-content: space-between; font-size: 0.85rem; color: #64748b; margin-bottom: 0.5rem;">
+                                <strong>{{ mention.source }}</strong>
+                                <span>{{ mention.date }}</span>
+                            </div>
+                            <p style="font-size: 0.95rem; margin-bottom: 0.5rem;">"{{ mention.text[:150] }}..."</p>
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <span
+                                    class="impact-badge {% if 'Positive' in mention.sentiment %}impact-high{% elif 'Negative' in mention.sentiment %}impact-high{% else %}impact-low{% endif %}">
+                                    {{ mention.sentiment }}
+                                </span>
+                                {% if mention.url %}<a href="{{ mention.url }}" target="_blank"
+                                    style="font-size: 0.85rem; color: #3b82f6;">View Post</a>{% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+
+                <h3 style="margin-top: 2rem;">Detailed Scoring</h3>
+                <table class="score-table">
+                    <thead>
+                        <tr>
+                            <th width="22%">Criteria</th>
+                            <th width="8%">Score</th>
+                            <th width="38%">Notes & Business Impact</th>
+                            <th width="32%">Recommended Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in module.items %}
+                        <tr>
+                            <td><strong>{{ item.name }}</strong></td>
+                            <td>{{ item.actual_points }}/{{ item.max_points }}</td>
+                            <td>
+                                {% if item.page_url %}<a href="{{ item.page_url }}" class="evidence-link">{{
+                                    item.page_url }}</a><br>{% endif %}
+                                {{ item.notes | markdown_to_html }}
+                                {% if item.business_impact and item.actual_points < (item.max_points * 0.7) %} <span
+                                    class="business-impact"><strong>So What?</strong> {{ item.business_impact }}</span>
+                                    {% endif %}
+                            </td>
+                            <td>{% if item.recommendation %}{{ item.recommendation | markdown_to_html }}{% else
+                                %}&mdash;{% endif %}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+
+                <!-- Per-Module Recommendations -->
+                {% if module.recommendations %}
+                <h3 style="margin-top: 2rem;">Module Recommendations</h3>
+                <div class="module-recs">
+                    {% for rec in module.recommendations %}
+                    <div class="module-rec-card">
+                        <div class="rec-issue"><strong>Issue:</strong> {{ rec.issue }}</div>
+                        <div class="rec-action"><strong>Action:</strong> {{ rec.recommendation | markdown_to_html }}
+                        </div>
+                        {% if rec.page_url %}<div class="rec-page"><a href="{{ rec.page_url }}">&rarr; {{ rec.page_url
+                                }}</a></div>{% endif %}
+                        {% if rec.business_impact %}<div class="rec-impact"><strong>Impact:</strong> {{
+                            rec.business_impact }}</div>{% endif %}
+                        <span class="impact-badge impact-{{ rec.impact.value | lower }}">{{ rec.impact.value }}
+                            Impact</span>
+                        <span class="effort-badge effort-{{ rec.effort.value | lower }}">{{ rec.effort.value }}
+                            Effort</span>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+
+        <!-- Top 5 Critical Pages -->
+        {% if critical_pages %}
+        <div class="module-section print-break" id="critical-pages">
+            <div class="module-header">
+                <h2>Top 5 Critical Pages</h2>
+            </div>
+            <div style="padding: 2rem;">
+                {% for cp in critical_pages %}
+                <div class="critical-page-card">
+                    <div class="page-header">
+                        <h3>{{ cp.page_type | title }}</h3>
+                        <span class="grade-badge grade-{{ cp.grade | lower }}">{{ cp.grade }}</span>
+                        <span>{{ cp.score }}/100</span>
+                    </div>
+                    <a href="{{ cp.url }}" class="evidence-link">{{ cp.url }}</a>
+                    {% if cp.screenshot and cp.screenshot.base64_data %}
+                    <img src="{{ cp.screenshot.base64_data }}" alt="{{ cp.page_type }} screenshot"
+                        class="page-screenshot">
+                    {% endif %}
+                    {% if cp.strengths %}
+                    <div class="page-findings">
+                        <strong>Strengths:</strong>
+                        <ul>
+                            {% for s in cp.strengths %}
+                            <li>{{ s }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+                    {% if cp.weaknesses %}
+                    <div class="page-findings">
+                        <strong>Weaknesses:</strong>
+                        <ul>
+                            {% for w in cp.weaknesses %}
+                            <li>{{ w }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+                    {% if cp.recommendations %}
+                    <div class="page-findings">
+                        <strong>Recommendations:</strong>
+                        <ul>
+                            {% for r in cp.recommendations %}
+                            <li>{{ r }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Identified Segments -->
+        {% if identified_segments %}
+        <div class="module-section print-break" id="segments">
+            <div class="module-header">
+                <h2>Target Segments</h2>
+            </div>
+            <div style="padding: 2rem;">
+                {% for seg in identified_segments %}
+                <div class="segment-card">
+                    <div class="segment-header">
+                        <div>
+                            <h3>{{ seg.name }}</h3>
+                            <p style="margin: 0.25rem 0; color: var(--text-light);">{{ seg.description }}</p>
+                        </div>
+                        <div style="text-align: right;">
+                            <div style="font-weight: 600; margin-bottom: 0.25rem;">{{ seg.coverage_score }}/100</div>
+                            <div class="coverage-bar">
+                                <div class="coverage-fill"
+                                    style="width: {{ seg.coverage_score }}%; background: {% if seg.coverage_score >= 70 %}var(--success){% elif seg.coverage_score >= 40 %}var(--warning){% else %}var(--danger){% endif %};">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% if seg.pain_points %}
+                    <div class="segment-pain-points">
+                        <strong>Pain Points:</strong>
+                        <ul style="margin: 0.25rem 0;">
+                            {% for pp in seg.pain_points %}
+                            <li>{{ pp }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+                    {% if seg.pages_addressing %}
+                    <div class="segment-pages">
+                        <strong>Pages Addressing:</strong> {{ seg.pages_addressing | join(', ') }}
+                    </div>
+                    {% endif %}
+                    {% if seg.recommendations %}
+                    <div style="margin-top: 0.5rem;">
+                        <strong>Recommendations:</strong>
+                        <ul style="margin: 0.25rem 0;">
+                            {% for r in seg.recommendations %}
+                            <li>{{ r }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <footer style="text-align: center; color: var(--text-light); margin-top: 4rem;">
+            <p>Generated by Bhavsar Growth Consulting Agentic Audit System</p>
+        </footer>
+
+    </div>
+
+</body>
+
+</html>

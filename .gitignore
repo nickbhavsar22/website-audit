@@ -1,0 +1,42 @@
+# Secrets
+.env
+.env.local
+credentials.json
+token.json
+
+# Client data (keep local only — excluded from public repo)
+clients/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+*.egg-info/
+
+# Debug & logs
+*.log
+audit_debug*.txt
+error_log.txt
+
+# Output (regenerable)
+.tmp/
+output/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+nul
+
+# Test scripts (contain API call patterns)
+test_*.py
+
+# Loose config files (client-specific)
+zello_config.txt
+
+# Generated outputs
+outputs/
