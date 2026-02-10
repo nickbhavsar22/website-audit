@@ -4,6 +4,7 @@ import requests
 import re
 import time
 import json
+import heapq
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin, urlparse
 from typing import Dict, List, Optional, Set
@@ -11,6 +12,7 @@ from typing import Dict, List, Optional, Set
 from .base_agent import BaseAgent
 from orchestrator.context_store import PageData
 from utils.scoring import ModuleScore, ScoreItem
+from utils.scraper import WebScraper
 
 
 class WebsiteAgent(BaseAgent):
@@ -35,9 +37,12 @@ class WebsiteAgent(BaseAgent):
         '/solutions', '/services', '/contact', '/contact-us', '/blog',
         '/resources', '/customers', '/case-studies', '/features', '/platform',
         '/company', '/team', '/why-us', '/demo', '/free-trial',
-        # New segment-related paths
+        # Segment-related paths
         '/industries', '/verticals', '/use-cases', '/for-enterprise',
-        '/for-startups', '/for-teams', '/segments', '/sectors'
+        '/for-startups', '/for-teams', '/segments', '/sectors',
+        # Additional discovery paths
+        '/integrations', '/partnerships', '/news', '/support', '/docs',
+        '/help', '/faq', '/legal', '/privacy'
     ]
 
     # Patterns for identifying segment/industry pages
@@ -70,6 +75,38 @@ class WebsiteAgent(BaseAgent):
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
         })
 
+    def _score_url_priority(self, url: str) -> int:
+        """Score URL priority (lower = higher priority for heapq)."""
+        url_lower = url.lower()
+        base = self.context.company_website.rstrip('/')
+
+        # Priority 0: homepage, pricing, product, about, solutions, demo
+        if url.rstrip('/') == base:
+            return 0
+        p0_patterns = ['/pricing', '/product', '/platform', '/about', '/solutions', '/demo', '/why']
+        if any(p in url_lower for p in p0_patterns):
+            return 0
+
+        # Priority 1: case-studies, customers, resources, blog index, features
+        p1_patterns = ['/case-stud', '/customer', '/resource', '/features']
+        if any(p in url_lower for p in p1_patterns):
+            return 1
+        # Blog index but not individual posts
+        if '/blog' in url_lower and url_lower.rstrip('/').endswith('/blog'):
+            return 1
+
+        # Priority 2: specific blog posts, integrations, partners, news
+        p2_patterns = ['/blog/', '/integration', '/partner', '/news']
+        if any(p in url_lower for p in p2_patterns):
+            return 2
+
+        # Priority 3: legal, careers, generic pages
+        p3_patterns = ['/legal', '/privacy', '/career', '/terms']
+        if any(p in url_lower for p in p3_patterns):
+            return 3
+
+        return 3
+
     async def run(self) -> ModuleScore:
         """Execute website crawling asynchronously."""
         module = ModuleScore(name="Website Crawl", weight=0)
@@ -78,18 +115,39 @@ class WebsiteAgent(BaseAgent):
         base_domain = urlparse(base_url).netloc
         max_pages = self.context.max_pages
 
-        # Build priority queue
-        to_visit = []
+        # --- Sitemap discovery ---
+        scraper = WebScraper(base_url, max_pages=max_pages)
+        sitemap_urls = scraper.parse_sitemap(base_url)
+        print(f"  Sitemap: discovered {len(sitemap_urls)} URLs")
+
+        # Build priority heap: (priority, counter, url)
+        # Counter ensures stable ordering for same-priority URLs
+        counter = 0
+        heap = []
+        seen_in_heap = set()
+
+        def add_to_heap(url: str):
+            nonlocal counter
+            norm = self._normalize_url(url)
+            if norm not in seen_in_heap:
+                priority = self._score_url_priority(norm)
+                heapq.heappush(heap, (priority, counter, norm))
+                seen_in_heap.add(norm)
+                counter += 1
+
+        # Add priority paths first
         for path in self.PRIORITY_PATHS:
-            url = self._normalize_url(f"{base_url}{path}")
-            if url not in to_visit:
-                to_visit.append(url)
+            add_to_heap(f"{base_url}{path}")
+
+        # Add sitemap URLs
+        for sitemap_url in sitemap_urls:
+            add_to_heap(sitemap_url)
 
         pages_crawled = 0
         segment_pages_found = 0
 
-        while to_visit and len(self.context.pages) < max_pages:
-            url = to_visit.pop(0)
+        while heap and len(self.context.pages) < max_pages:
+            _, _, url = heapq.heappop(heap)
             normalized = self._normalize_url(url)
 
             if normalized in self.visited:
@@ -111,17 +169,13 @@ class WebsiteAgent(BaseAgent):
                 self.context.add_page(page)
                 pages_crawled += 1
 
-                # Add new internal links to queue
+                # Add new internal links to heap
                 for link in page.internal_links:
                     norm_link = self._normalize_url(link)
-                    if norm_link not in self.visited and norm_link not in to_visit:
+                    if norm_link not in self.visited and norm_link not in seen_in_heap:
                         # Skip certain patterns
                         if not any(x in norm_link.lower() for x in ['/tag/', '/category/', '/page/', '#', '.pdf', '.jpg', '.png']):
-                            # Prioritize segment-related pages
-                            if any(re.search(p, norm_link.lower()) for p in self.SEGMENT_PATTERNS):
-                                to_visit.insert(0, norm_link)  # Add to front
-                            else:
-                                to_visit.append(norm_link)
+                            add_to_heap(norm_link)
 
             time.sleep(1.0)  # Rate limiting
 
@@ -294,6 +348,7 @@ Website crawl completed for {self.context.company_name}.
         url_lower = url.lower()
         base = self.context.company_website.rstrip('/')
 
+        # URL-based classification
         if url.rstrip('/') == base:
             return 'homepage'
         if '/pricing' in url_lower:
@@ -314,7 +369,44 @@ Website crawl completed for {self.context.company_name}.
             return 'contact'
         if '/demo' in url_lower or '/trial' in url_lower:
             return 'conversion'
+        if '/integration' in url_lower:
+            return 'integration'
+        if '/doc' in url_lower or '/api' in url_lower:
+            return 'documentation'
+        if '/legal' in url_lower or '/terms' in url_lower or '/privacy' in url_lower:
+            return 'legal'
+        if '/faq' in url_lower or '/help' in url_lower:
+            return 'faq'
+        if '/webinar' in url_lower:
+            return 'webinar'
+        if '/partner' in url_lower:
+            return 'partner'
         if any(re.search(p, url_lower) for p in self.SEGMENT_PATTERNS):
+            return 'segment'
+
+        # Content-based fallback classification
+        raw_lower = page.raw_text.lower()[:3000] if page.raw_text else ''
+        title_lower = page.title.lower() if page.title else ''
+        h1_text = ' '.join(page.h1_tags).lower() if page.h1_tags else ''
+
+        if 'case study' in raw_lower or 'customer story' in raw_lower:
+            return 'case_study'
+        if 'testimonial' in raw_lower or 'review' in raw_lower:
+            return 'testimonial'
+        if 'webinar' in raw_lower or 'on-demand' in raw_lower:
+            return 'webinar'
+        if 'integration' in raw_lower or 'connect with' in raw_lower:
+            return 'integration'
+        if 'documentation' in raw_lower or 'api reference' in raw_lower:
+            return 'documentation'
+        if 'faq' in raw_lower or 'frequently asked' in raw_lower:
+            return 'faq'
+
+        # Check title/H1 for segment indicators
+        combined_heading = f"{title_lower} {h1_text}"
+        if re.search(r'for\s+\w+\s+(industry|sector|companies|teams)', combined_heading):
+            return 'segment'
+        if re.search(r'([\w\s]+)\s+solutions?', combined_heading):
             return 'segment'
 
         return 'other'

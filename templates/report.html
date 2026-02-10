@@ -690,6 +690,17 @@
         }
 
         /* Print styles */
+        .empty-state {
+            color: var(--text-light);
+            font-style: italic;
+            padding: 1rem 1.5rem;
+            background: #f8fafc;
+            border-radius: 0.5rem;
+            text-align: center;
+            border: 1px dashed #e2e8f0;
+            margin: 1rem 0;
+        }
+
         @media print {
             body {
                 padding: 0;
@@ -817,13 +828,19 @@
                     <div
                         style="background: #f8fafc; padding: 1.5rem; border-radius: 0.5rem; border: 1px solid #e2e8f0;">
                         <h4 style="margin-top:0">Target Audience (ICP)</h4>
+                        {% if deep_research.raw_data.icp and deep_research.raw_data.icp.primary %}
                         <p><strong>Primary:</strong> {{ deep_research.raw_data.icp.primary }}</p>
+                        {% if deep_research.raw_data.icp.industries %}
                         <strong>Key Industries:</strong>
                         <ul>
                             {% for ind in deep_research.raw_data.icp.industries %}
                             <li>{{ ind }}</li>
                             {% endfor %}
                         </ul>
+                        {% endif %}
+                        {% else %}
+                        <p class="empty-state">ICP data not available. Deep research may not have identified a clear target audience from the website content.</p>
+                        {% endif %}
                     </div>
                 </div>
             </div>
@@ -834,19 +851,27 @@
         <div class="exec-summary" id="exec-summary">
             <div class="strengths-box">
                 <h3>Top Strengths</h3>
+                {% if top_strengths %}
                 <ul>
                     {% for strength in top_strengths %}
                     <li>{{ strength }}</li>
                     {% endfor %}
                 </ul>
+                {% else %}
+                <p class="empty-state">No strengths scored above the reporting threshold. Run audit with LLM enabled for detailed analysis.</p>
+                {% endif %}
             </div>
             <div class="gaps-box">
                 <h3>Critical Gaps</h3>
+                {% if critical_gaps %}
                 <ul>
                     {% for gap in critical_gaps %}
                     <li>{{ gap }}</li>
                     {% endfor %}
                 </ul>
+                {% else %}
+                <p class="empty-state">No critical gaps identified above threshold.</p>
+                {% endif %}
             </div>
         </div>
 
@@ -868,7 +893,7 @@
 
                 <!-- Quadrants -->
                 <div class="matrix-quadrant quadrant-strategic">
-                    <h4 style="color: var(--secondary)">Strategic Bets (High Impact, High Effort)</h4>
+                    <h4 style="color: var(--secondary)">Strategic Bets ({{ matrix_recommendations['Strategic Bet']|length }})</h4>
                     {% for rec in matrix_recommendations['Strategic Bet'] %}
                     <div class="rec-card strategic">
                         <strong>{{ rec.category }}</strong><br>
@@ -877,10 +902,11 @@
                             rec.page_url }}</a>{% endif %}
                     </div>
                     {% endfor %}
+                    {% if not matrix_recommendations['Strategic Bet'] %}<p class="empty-state">No items in this quadrant.</p>{% endif %}
                 </div>
 
                 <div class="matrix-quadrant quadrant-quick-wins">
-                    <h4 style="color: var(--success)">Quick Wins (High Impact, Low Effort)</h4>
+                    <h4 style="color: var(--success)">Quick Wins ({{ matrix_recommendations['Quick Win']|length }})</h4>
                     {% for rec in matrix_recommendations['Quick Win'] %}
                     <div class="rec-card quick-win">
                         <strong>{{ rec.category }}</strong><br>
@@ -889,24 +915,27 @@
                             rec.page_url }}</a>{% endif %}
                     </div>
                     {% endfor %}
+                    {% if not matrix_recommendations['Quick Win'] %}<p class="empty-state">No items in this quadrant.</p>{% endif %}
                 </div>
 
                 <div class="matrix-quadrant quadrant-distraction">
-                    <h4>Distractions (Low Impact, High Effort)</h4>
+                    <h4>Distractions ({{ matrix_recommendations['Distraction']|length }})</h4>
                     {% for rec in matrix_recommendations['Distraction'] %}
                     <div class="rec-card">
                         {{ rec.recommendation | markdown_to_html }}
                     </div>
                     {% endfor %}
+                    {% if not matrix_recommendations['Distraction'] %}<p class="empty-state">No items in this quadrant.</p>{% endif %}
                 </div>
 
                 <div class="matrix-quadrant quadrant-low-hanging">
-                    <h4 style="color: var(--warning)">Low Hanging Fruit (Low Impact, Low Effort)</h4>
+                    <h4 style="color: var(--warning)">Low Hanging Fruit ({{ matrix_recommendations['Low Hanging Fruit']|length }})</h4>
                     {% for rec in matrix_recommendations['Low Hanging Fruit'] %}
                     <div class="rec-card">
                         {{ rec.recommendation | markdown_to_html }}
                     </div>
                     {% endfor %}
+                    {% if not matrix_recommendations['Low Hanging Fruit'] %}<p class="empty-state">No items in this quadrant.</p>{% endif %}
                 </div>
             </div>
         </div>
@@ -931,7 +960,8 @@
                 {{ module.analysis_text | markdown_to_html }}
 
                 <!-- JTBD Visualization for Positioning Module -->
-                {% if module.name == "Positioning & Messaging" and module.raw_data.jtbd_analysis %}
+                {% if module.name == "Positioning & Messaging" %}
+                {% if module.raw_data.jtbd_analysis and (module.raw_data.jtbd_analysis.functional_job or module.raw_data.jtbd_analysis.emotional_job) %}
                 <div class="framework-visual">
                     <h4 style="margin-top:0">Jobs to be Done (JTBD) Analysis & Asset Manifest</h4>
                     <table class="score-table">
@@ -967,6 +997,12 @@
                         </tbody>
                     </table>
                 </div>
+                {% else %}
+                <div class="framework-visual">
+                    <h4 style="margin-top:0">Jobs to be Done (JTBD) Analysis</h4>
+                    <p class="empty-state">JTBD analysis requires clearer positioning statements on the website.</p>
+                </div>
+                {% endif %}
                 {% endif %}
 
                 <!-- Prompt Visibility Visualization -->
@@ -1037,6 +1073,7 @@
                 {% endif %}
 
                 <h3 style="margin-top: 2rem;">Detailed Scoring</h3>
+                {% if module.items %}
                 <table class="score-table">
                     <thead>
                         <tr>
@@ -1065,6 +1102,9 @@
                         {% endfor %}
                     </tbody>
                 </table>
+                {% else %}
+                <p class="empty-state">Detailed scoring data not available for this module. This may indicate the LLM analysis was incomplete.</p>
+                {% endif %}
 
                 <!-- Per-Module Recommendations -->
                 {% if module.recommendations %}
@@ -1086,6 +1126,9 @@
                     </div>
                     {% endfor %}
                 </div>
+                {% else %}
+                <h3 style="margin-top: 2rem;">Module Recommendations</h3>
+                <p class="empty-state">No specific recommendations generated for this module.</p>
                 {% endif %}
             </div>
         </div>
@@ -1205,6 +1248,19 @@
         </footer>
 
     </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelectorAll('a[href^="#"]').forEach(function(link) {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+                var id = this.getAttribute('href').substring(1);
+                var el = document.getElementById(id);
+                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            });
+        });
+    });
+    </script>
 
 </body>
 

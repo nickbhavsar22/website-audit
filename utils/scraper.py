@@ -7,8 +7,12 @@ import time
 import re
 import socket
 import ipaddress
+import logging
 from typing import Dict, List, Optional, Set
+from xml.etree import ElementTree
 from orchestrator.context_store import PageData
+
+logger = logging.getLogger(__name__)
 
 
 class WebScraper:
@@ -205,6 +209,76 @@ class WebScraper:
         except Exception as e:
             print(f"  Error fetching {url}: {e}")
             return None
+
+    def parse_sitemap(self, base_url: str) -> List[str]:
+        """
+        Parse sitemap.xml to discover URLs.
+
+        Handles both regular sitemaps and sitemap index files.
+        Returns only same-domain URLs.
+        """
+        sitemap_url = f"{base_url.rstrip('/')}/sitemap.xml"
+        urls = []
+
+        try:
+            response = self.session.get(sitemap_url, timeout=10)
+            if response.status_code != 200:
+                logger.info("No sitemap found at %s (status %d)", sitemap_url, response.status_code)
+                return []
+
+            root = ElementTree.fromstring(response.content)
+            # Handle namespace
+            ns = ''
+            if root.tag.startswith('{'):
+                ns = root.tag.split('}')[0] + '}'
+
+            # Check if this is a sitemap index file
+            sitemap_tags = root.findall(f'{ns}sitemap')
+            if sitemap_tags:
+                # Sitemap index - fetch each child sitemap
+                for sitemap in sitemap_tags:
+                    loc = sitemap.find(f'{ns}loc')
+                    if loc is not None and loc.text:
+                        child_urls = self._parse_single_sitemap(loc.text.strip())
+                        urls.extend(child_urls)
+            else:
+                # Regular sitemap - extract <loc> URLs
+                for url_tag in root.findall(f'{ns}url'):
+                    loc = url_tag.find(f'{ns}loc')
+                    if loc is not None and loc.text:
+                        urls.append(loc.text.strip())
+
+        except Exception as e:
+            logger.info("Error parsing sitemap for %s: %s", base_url, e)
+            return []
+
+        # Filter to same domain only
+        base_domain = urlparse(base_url).netloc
+        same_domain_urls = [u for u in urls if urlparse(u).netloc == base_domain]
+
+        logger.info("Sitemap: discovered %d URLs (%d same-domain)", len(urls), len(same_domain_urls))
+        return same_domain_urls
+
+    def _parse_single_sitemap(self, sitemap_url: str) -> List[str]:
+        """Parse a single sitemap XML file and return list of URLs."""
+        urls = []
+        try:
+            response = self.session.get(sitemap_url, timeout=10)
+            if response.status_code != 200:
+                return []
+
+            root = ElementTree.fromstring(response.content)
+            ns = ''
+            if root.tag.startswith('{'):
+                ns = root.tag.split('}')[0] + '}'
+
+            for url_tag in root.findall(f'{ns}url'):
+                loc = url_tag.find(f'{ns}loc')
+                if loc is not None and loc.text:
+                    urls.append(loc.text.strip())
+        except Exception as e:
+            logger.info("Error parsing child sitemap %s: %s", sitemap_url, e)
+        return urls
 
     def crawl(self) -> Dict[str, PageData]:
         """Crawl the website up to max_pages."""

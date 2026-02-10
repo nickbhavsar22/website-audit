@@ -29,11 +29,24 @@ class SegmentationAgent(BaseAgent):
         module = ModuleScore(name="Segmentation Analysis", weight=self.weight)
 
         # Gather segment data from crawled pages
-        segment_pages = self.context.get_pages_by_type('segment')
+        segment_pages = list(self.context.get_pages_by_type('segment'))
         all_segments = set()
 
+        # Also include solutions pages and pages with identified segments
         for page in self.context.pages.values():
             all_segments.update(page.identified_segments)
+            if page not in segment_pages:
+                if hasattr(page, 'page_type') and page.page_type == 'solutions':
+                    segment_pages.append(page)
+                elif page.identified_segments:
+                    segment_pages.append(page)
+
+        # Always include homepage + about page content for ICP inference
+        home_url = self.context.company_website.rstrip('/')
+        for url, page in self.context.pages.items():
+            if page not in segment_pages:
+                if url.rstrip('/') == home_url or '/about' in url.lower():
+                    segment_pages.append(page)
 
         # Build content for analysis
         segment_content = self._build_segment_content(segment_pages)
@@ -161,7 +174,7 @@ Detected Segments: {', '.join(page.identified_segments)}
                     break
 
         # If no specific segment pages found OR content is sparse, add priority pages (Home, About)
-        if not segment_pages or len('\n'.join(content_parts)) < 4000:
+        if not segment_pages or len('\n'.join(content_parts)) < 6000:
             priority_content = self.get_priority_pages_content()
             if priority_content:
                 content_parts.append("\n--- PRIORITY PAGES (For Segment Inference) ---\n" + priority_content)

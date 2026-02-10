@@ -28,9 +28,12 @@ class DeepResearchAgent(BaseAgent):
 
         # 1. Gather Context
         # We invoke the LLM to "research" based on its training data + website content
-        website_content = self.get_priority_pages_content(max_chars=20000)
-        
-        research_data = await self._perform_research(website_content)
+        website_content = self.get_priority_pages_content(max_chars=30000)
+
+        # Extract structured signals from pages before sending to LLM
+        structured_signals = self._extract_structured_signals()
+
+        research_data = await self._perform_research(website_content, structured_signals)
         
         # 2. Store results in Context (so other agents can use it)
         # We need to extend ContextStore to hold this, but for now we'll put it in raw_data
@@ -53,18 +56,82 @@ class DeepResearchAgent(BaseAgent):
             raw_data=research_data
         )
 
-    async def _perform_research(self, website_content: str) -> Dict[str, Any]:
+    def _extract_structured_signals(self) -> Dict[str, Any]:
+        """Extract structured signals from crawled pages for additional LLM context."""
+        signals = {
+            "pricing_tiers": [],
+            "team_members": [],
+            "integration_partners": [],
+            "customer_logos_alt": [],
+        }
+
+        for url, page in self.context.pages.items():
+            url_lower = url.lower()
+
+            # Extract pricing tier names from pricing pages
+            if '/pricing' in url_lower:
+                for h in page.h2_tags + page.h3_tags:
+                    h_lower = h.lower()
+                    if any(kw in h_lower for kw in ['plan', 'tier', 'starter', 'pro', 'enterprise', 'business', 'free', 'basic', 'premium']):
+                        if h not in signals["pricing_tiers"]:
+                            signals["pricing_tiers"].append(h)
+
+            # Extract team members from about/team pages
+            if '/team' in url_lower or '/about' in url_lower or '/leadership' in url_lower:
+                for img in page.images:
+                    alt = img.get('alt', '').strip()
+                    if alt and len(alt.split()) <= 5 and alt[0].isupper():
+                        if alt not in signals["team_members"]:
+                            signals["team_members"].append(alt)
+
+            # Extract integration partners
+            if '/integration' in url_lower or '/partners' in url_lower:
+                for h in page.h2_tags + page.h3_tags:
+                    if h and len(h.split()) <= 4:
+                        if h not in signals["integration_partners"]:
+                            signals["integration_partners"].append(h)
+
+            # Extract customer logo alt text from any page
+            for img in page.images:
+                alt = img.get('alt', '').lower()
+                if any(kw in alt for kw in ['logo', 'customer', 'client', 'trusted']):
+                    clean_alt = img.get('alt', '').strip()
+                    if clean_alt and clean_alt not in signals["customer_logos_alt"]:
+                        signals["customer_logos_alt"].append(clean_alt)
+
+        # Limit each to reasonable size
+        for key in signals:
+            signals[key] = signals[key][:20]
+
+        return signals
+
+    async def _perform_research(self, website_content: str, structured_signals: Dict[str, Any] = None) -> Dict[str, Any]:
         """Ask LLM to research the company."""
-        
+
+        signals_context = ""
+        if structured_signals:
+            parts = []
+            if structured_signals.get("pricing_tiers"):
+                parts.append(f"Pricing Tiers: {', '.join(structured_signals['pricing_tiers'])}")
+            if structured_signals.get("team_members"):
+                parts.append(f"Team Members Detected: {', '.join(structured_signals['team_members'][:10])}")
+            if structured_signals.get("integration_partners"):
+                parts.append(f"Integration Partners: {', '.join(structured_signals['integration_partners'][:10])}")
+            if structured_signals.get("customer_logos_alt"):
+                parts.append(f"Customer Logos/References: {', '.join(structured_signals['customer_logos_alt'][:10])}")
+            if parts:
+                signals_context = "\n\nStructured Signals Extracted:\n" + "\n".join(parts)
+
         prompt = f"""
         You are a Senior Strategic Consultant conducting deep due diligence on a B2B SaaS company.
-        
+
         Target Company: {self.context.company_name}
         Website: {self.context.company_website}
-        
+
         Context from Website:
         {website_content}
-        
+        {signals_context}
+
         Your Goal: Construct a comprehensive "Company Profile" based on your internal knowledge and the text provided.
         If specific details (like exact funding amount) are not public or in the text, make a highly educated estimate based on company stage, employee count signals, and industry norms, or state "Unknown" if it's impossible to guess.
 

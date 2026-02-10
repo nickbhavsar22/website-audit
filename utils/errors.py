@@ -25,3 +25,25 @@ class ScrapingError(AuditError):
 class ValidationError(AuditError):
     """Error for invalid input (URLs, config, etc.)."""
     pass
+
+
+class LLMResponseValidationError(LLMError):
+    """LLM response missing expected fields."""
+    def __init__(self, missing_fields, raw_response="", message=""):
+        self.missing_fields = missing_fields
+        self.raw_response = raw_response
+        super().__init__(
+            provider="unknown",
+            message=message or f"LLM response missing fields: {', '.join(missing_fields)}"
+        )
+
+
+class PartialResponseError(LLMError):
+    """LLM response valid JSON but missing expected fields."""
+    def __init__(self, missing_fields, response=None, message=""):
+        self.missing_fields = missing_fields
+        self.response = response or {}
+        super().__init__(
+            provider="unknown",
+            message=message or f"Partial LLM response, missing: {', '.join(missing_fields)}"
+        )

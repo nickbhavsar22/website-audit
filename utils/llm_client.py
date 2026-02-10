@@ -210,22 +210,57 @@ class LLMClient:
             cleaned_text = cleaned_text.split("```json")[1].split("```")[0]
         elif "```" in cleaned_text:
             cleaned_text = cleaned_text.split("```")[1]
-            
+
         cleaned_text = cleaned_text.strip()
-        
+
         try:
-            return json.loads(cleaned_text)
+            result = json.loads(cleaned_text)
+            if result == {} or result is None:
+                logger.warning("LLM returned empty JSON response")
+            return result if isinstance(result, dict) else {"data": result}
         except json.JSONDecodeError:
             # Fallback cleanup
-            if cleaned_text.startswith("```"): 
+            if cleaned_text.startswith("```"):
                 cleaned_text = cleaned_text.replace("```", "")
             try:
-                return json.loads(cleaned_text)
+                result = json.loads(cleaned_text)
+                if result == {} or result is None:
+                    logger.warning("LLM returned empty JSON response after cleanup")
+                return result if isinstance(result, dict) else {"data": result}
             except Exception as e:
                 # Return raw text wrapped if parsing fails, or empty dict?
                 # Agents expect dict.
                 logger.warning("Error parsing JSON: %s\nOutput: %s...", e, response_text[:100])
                 return {}
+
+    def validate_response(self, response: Dict[str, Any], expected_fields: Dict[str, type]) -> tuple:
+        """
+        Validate that an LLM response contains expected fields.
+
+        Args:
+            response: The parsed JSON response dict
+            expected_fields: Dict mapping field_name -> expected type
+                e.g. {"scores": dict, "analysis": str}
+
+        Returns:
+            Tuple of (response, missing_fields_list)
+        """
+        missing_fields = []
+        for field_name, field_type in expected_fields.items():
+            value = response.get(field_name)
+            if value is None:
+                missing_fields.append(field_name)
+            elif isinstance(value, str) and not value.strip():
+                missing_fields.append(field_name)
+            elif isinstance(value, (dict, list)) and len(value) == 0:
+                missing_fields.append(field_name)
+            elif not isinstance(value, field_type):
+                missing_fields.append(field_name)
+
+        if missing_fields:
+            logger.warning("LLM response missing fields: %s", ', '.join(missing_fields))
+
+        return (response, missing_fields)
 
     def format_prompt(self, template: str, **kwargs) -> str:
         """

@@ -206,57 +206,100 @@ Platforms NOT found should be noted but scored as 0 for that platform.
         return module
 
     def _fallback_analysis(self, module: ModuleScore, social_links: Dict) -> ModuleScore:
-        """Provide fallback scores."""
+        """Provide structured presence audit when API data unavailable."""
         platforms_found = list(social_links.keys())
-        presence_score = min(len(platforms_found) * 2, 10)
+        total_platforms = len(platforms_found)
+
+        # Key B2B platforms to check
+        key_platforms = ['linkedin', 'twitter', 'youtube', 'facebook', 'instagram']
+        present = [p for p in key_platforms if p in platforms_found]
+        missing = [p for p in key_platforms if p not in platforms_found]
+
+        # Score based on presence completeness (5 platforms found = higher than 2)
+        presence_score = min(total_platforms * 2, 10)
+
+        # Presence completeness score
+        completeness = int((len(present) / len(key_platforms)) * 25) if key_platforms else 0
 
         module.items = [
-            ScoreItem("Social Presence", "Active accounts exist", 10, presence_score,
-                     f"Found: {', '.join(platforms_found)}"),
-            ScoreItem("Posting Frequency", "Consistent posting", 15, 7,
-                     "Manual review required - API access needed for metrics"),
-            ScoreItem("Engagement Rate", "Engagement relative to followers", 25, 12,
-                     "Manual review required - API access needed for metrics"),
-            ScoreItem("Content Mix", "Content variety", 15, 7,
-                     "Manual review required"),
-            ScoreItem("Brand Consistency", "Visual/messaging alignment", 15, 7,
-                     "Manual review required"),
-            ScoreItem("Best Practices", "Platform optimization", 20, 10,
+            ScoreItem("Social Presence", "Active accounts detected on website", 10, presence_score,
+                     f"Found {total_platforms} platforms: {', '.join(platforms_found) if platforms_found else 'None'}"),
+            ScoreItem("Platform Completeness", "Coverage of key B2B platforms", 25, completeness,
+                     f"Present: {', '.join(present) if present else 'None'}. Missing: {', '.join(missing) if missing else 'None'}"),
+            ScoreItem("Content & Engagement", "Posting and engagement quality", 40, 20,
+                     "Manual review required - scores below are presence-based estimates only"),
+            ScoreItem("Brand Consistency", "Visual/messaging alignment across platforms", 25, 12,
                      "Manual review required"),
         ]
+
+        # Build per-platform manual review checklist
+        checklist_items = []
+        platform_checklists = {
+            'linkedin': "[ ] Company page complete with banner, about, specialties\n[ ] Posting 3-5x/week with mix of thought leadership + product\n[ ] Employee advocacy program active",
+            'twitter': "[ ] Bio includes value prop and link\n[ ] Engaging in industry conversations (not just broadcasting)\n[ ] Consistent posting cadence",
+            'youtube': "[ ] Channel art and description optimized\n[ ] Demo/tutorial videos available\n[ ] Playlists organized by topic",
+            'facebook': "[ ] Page info complete\n[ ] Community management active\n[ ] Event promotion if applicable",
+            'instagram': "[ ] Bio optimized with CTA link\n[ ] Visual brand consistency\n[ ] Stories/Reels for behind-the-scenes",
+        }
+
+        for platform in key_platforms:
+            status = "FOUND" if platform in platforms_found else "NOT FOUND"
+            url = social_links.get(platform, 'N/A')
+            checklist = platform_checklists.get(platform, "[ ] Manual review needed")
+            checklist_items.append(f"**{platform.title()}** ({status}): {url}\n{checklist}")
+
+        checklist_text = '\n\n'.join(checklist_items)
+
         module.analysis_text = f"""
-Social media profiles detected: {', '.join(platforms_found) if platforms_found else 'None'}
+### Social Media Presence Audit
 
-**Note:** Detailed social media metrics (engagement rates, posting frequency, etc.) require either:
-1. API access to each platform
-2. Manual review of the profiles
+**Platforms Detected:** {total_platforms} of {len(key_platforms)} key B2B platforms
+**Present:** {', '.join(present) if present else 'None'}
+**Missing:** {', '.join(missing) if missing else 'All key platforms covered'}
 
-The scores above are estimates based on presence detection only. For a complete social media audit,
-manual review of the last 15-20 posts on each platform is recommended.
+**Important:** Social platforms cannot be deeply analyzed via scraping. The scores above reflect presence detection only. Detailed engagement metrics, posting frequency, and content quality require manual review or API access.
+
+### Manual Review Checklist
+
+{checklist_text}
 """
-        module.recommendations = [
-            Recommendation(
-                issue="Social engagement strategy not assessed",
-                recommendation="Shift from broadcasting (link drops) to engagement — reply to comments, ask questions, and share employee thought leadership on LinkedIn",
+
+        module.recommendations = []
+        if missing:
+            module.recommendations.append(Recommendation(
+                issue=f"Missing social presence on {', '.join(missing)}",
+                recommendation=f"Create and optimize profiles on {', '.join(missing[:3])}. For B2B, LinkedIn is critical; prioritize it if not yet active.",
                 impact=Impact.MEDIUM,
-                effort=Effort.LOW,
-                category="Social Media",
-                page_url=social_links.get('linkedin', self.context.company_website),
-                kpi_impact=KPIImpact.BRAND_AWARENESS
-            ),
-            Recommendation(
-                issue="Content sharing not assessed",
-                recommendation="Add social sharing buttons to blog posts and resource pages to amplify content distribution",
-                impact=Impact.MEDIUM,
-                effort=Effort.LOW,
+                effort=Effort.MEDIUM,
                 category="Social Media",
                 page_url=self.context.company_website,
-                kpi_impact=KPIImpact.WEBSITE_TRAFFIC
-            ),
-        ]
+                kpi_impact=KPIImpact.BRAND_AWARENESS
+            ))
+
+        module.recommendations.append(Recommendation(
+            issue="Social engagement strategy not assessed",
+            recommendation="Shift from broadcasting (link drops) to engagement -- reply to comments, ask questions, and share employee thought leadership on LinkedIn",
+            impact=Impact.MEDIUM,
+            effort=Effort.LOW,
+            category="Social Media",
+            page_url=social_links.get('linkedin', self.context.company_website),
+            kpi_impact=KPIImpact.BRAND_AWARENESS
+        ))
+        module.recommendations.append(Recommendation(
+            issue="Content sharing not assessed",
+            recommendation="Add social sharing buttons to blog posts and resource pages to amplify content distribution",
+            impact=Impact.MEDIUM,
+            effort=Effort.LOW,
+            category="Social Media",
+            page_url=self.context.company_website,
+            kpi_impact=KPIImpact.WEBSITE_TRAFFIC
+        ))
+
         module.raw_data = {
             "platforms_found": platforms_found,
-            "platform_urls": social_links
+            "platform_urls": social_links,
+            "missing_platforms": missing,
+            "presence_audit": True
         }
         return module
 

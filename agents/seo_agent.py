@@ -301,6 +301,49 @@ The website was analyzed across {total_pages} pages for technical SEO health.
 **Technical:** {mobile_pct:.0f}% of pages indicate mobile responsiveness. Internal linking averages {avg_internal_links:.1f} links per page. Schema markup is {'present' if schema_pct > 0 else 'not implemented'}.
 """
 
+        # LLM-augmented strategic SEO recommendations
+        if self.llm.is_available():
+            try:
+                heuristic_summary = (
+                    f"Meta coverage: titles {title_pct:.0f}%, descriptions {desc_pct:.0f}%. "
+                    f"H1 coverage: {h1_pct:.0f}%. Avg load time: {avg_load_time:.2f}s. "
+                    f"Mobile ready: {mobile_pct:.0f}%. Schema: {schema_pct:.0f}%. "
+                    f"Avg internal links: {avg_internal_links:.1f}. "
+                    f"Image alt coverage: {alt_pct:.0f}% of {total_images} images. "
+                    f"Schema types found: {', '.join(list(schema_types)[:5]) if schema_types else 'None'}."
+                )
+
+                seo_result = await self.llm.analyze_with_prompt_async(
+                    "seo",
+                    company_name=self.context.company_name,
+                    company_website=self.context.company_website,
+                    heuristic_summary=heuristic_summary,
+                    max_tokens=2000
+                )
+
+                # Append LLM recommendations
+                for rec in seo_result.get("prioritized_actions", []):
+                    impact_map = {"High": Impact.HIGH, "Medium": Impact.MEDIUM, "Low": Impact.LOW}
+                    effort_map = {"High": Effort.HIGH, "Medium": Effort.MEDIUM, "Low": Effort.LOW}
+
+                    module.recommendations.append(Recommendation(
+                        issue=rec.get("issue", ""),
+                        recommendation=rec.get("recommendation", ""),
+                        impact=impact_map.get(rec.get("impact", "Medium"), Impact.MEDIUM),
+                        effort=effort_map.get(rec.get("effort", "Medium"), Effort.MEDIUM),
+                        category="SEO & Technical",
+                        page_url=self.context.company_website,
+                        kpi_impact=KPIImpact.SEO_RANKING
+                    ))
+
+                # Augment analysis with strategic priorities
+                strategic_text = seo_result.get("strategic_priorities", "")
+                if strategic_text:
+                    module.analysis_text += f"\n\n**Strategic SEO Priorities:**\n{strategic_text}"
+
+            except Exception as e:
+                print(f"  SEO LLM augmentation skipped: {e}")
+
         module.raw_data = {
             'total_pages': total_pages,
             'avg_load_time': avg_load_time,

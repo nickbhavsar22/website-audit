@@ -76,6 +76,23 @@ class TrustAgent(BaseAgent):
                 if re.search(pattern, text_lower, re.I):
                     detected_signals[signal] = True
 
+            # G2/Capterra/TrustRadius detection via image sources
+            for img in page.images:
+                img_src = img.get('src', '').lower()
+                img_alt = img.get('alt', '').lower()
+                if any(platform in img_src for platform in ['g2.com', 'g2crowd', 'capterra', 'trustradius']):
+                    detected_signals['reviews'] = True
+                # Compliance certification detection via image alt text
+                if any(cert in img_alt for cert in ['soc', 'iso', 'gdpr', 'hipaa']):
+                    detected_signals['security'] = True
+
+            # Expanded testimonial detection via CSS class patterns
+            soup_classes = page.html.lower() if page.html else ''
+            expanded_patterns = ['review', 'client-quote', 'customer-story', 'social-proof']
+            for pattern in expanded_patterns:
+                if pattern in soup_classes:
+                    detected_signals['testimonials'] = True
+
             content_samples.append(f"""
 --- PAGE: {url} ---
 Title: {page.title}

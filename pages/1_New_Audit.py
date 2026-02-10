@@ -379,7 +379,7 @@ if st.session_state.get("audit_complete"):
         html_content = result.get("html_content", "")
         if html_content:
             st.subheader("Full Report")
-            components.html(html_content, height=800, scrolling=True)
+            components.html(html_content, height=2000, scrolling=True)
 
             st.download_button(
                 "Download HTML Report",

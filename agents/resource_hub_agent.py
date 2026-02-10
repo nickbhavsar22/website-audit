@@ -32,11 +32,35 @@ class ResourceHubAgent(BaseAgent):
         landing_pages = []
         gated_content = []
 
+        resource_url_patterns = [
+            '/resource', '/guide', '/ebook', '/whitepaper', '/webinar', '/template',
+            '/library', '/learn', '/knowledge', '/content', '/insight', '/report',
+            '/paper', '/toolkit', '/playbook', '/checklist', '/infographic',
+            '/video', '/podcast', '/docs'
+        ]
+
+        resource_title_keywords = [
+            'resource', 'guide', 'ebook', 'whitepaper', 'webinar', 'template',
+            'library', 'toolkit', 'playbook', 'checklist', 'report', 'insight'
+        ]
+
         for url, page in self.context.pages.items():
             url_lower = url.lower()
 
-            # Resource pages
-            if any(x in url_lower for x in ['/resource', '/guide', '/ebook', '/whitepaper', '/webinar', '/template']):
+            # Resource pages - URL pattern match
+            is_resource = any(x in url_lower for x in resource_url_patterns)
+
+            # Content-based detection: page_type check
+            if not is_resource and hasattr(page, 'page_type') and page.page_type in ('resources', 'documentation'):
+                is_resource = True
+
+            # Title-based fallback detection
+            if not is_resource and page.title:
+                title_lower = page.title.lower()
+                if any(kw in title_lower for kw in resource_title_keywords):
+                    is_resource = True
+
+            if is_resource:
                 resource_pages.append(page)
 
                 # Check if gated (has form)
@@ -46,7 +70,7 @@ class ResourceHubAgent(BaseAgent):
                         'title': page.title,
                         'form_fields': page.forms[0].get('field_count', 0) if page.forms else 0
                     })
-            
+
             # Blog pages (as backup for resources)
             if '/blog' in url_lower:
                 # We'll treat blogs as potential resources if we don't find formal ones

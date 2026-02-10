@@ -1,0 +1,24 @@
+You are an SEO strategist analyzing a B2B SaaS website.
+
+Company: {company_name}
+Website: {company_website}
+
+Here are the heuristic SEO findings from our automated scan:
+{heuristic_summary}
+
+Based on these findings, provide 5 prioritized SEO actions ranked by potential search impact.
+Consider the company's B2B context when prioritizing (e.g., intent-based keywords matter more than volume).
+
+Respond in JSON:
+{{
+    "prioritized_actions": [
+        {{
+            "issue": "Brief description of the SEO issue",
+            "recommendation": "Specific, actionable recommendation",
+            "impact": "High/Medium/Low",
+            "effort": "High/Medium/Low",
+            "expected_outcome": "What improvement to expect"
+        }}
+    ],
+    "strategic_priorities": "A 2-3 sentence summary of the most important SEO priorities for this company, focusing on search visibility for buyer-intent queries."
+}}

@@ -143,39 +143,43 @@ class PromptVisibilityAgent(BaseAgent):
 
     def _score_visibility(self, results: List[Dict]) -> List[ScoreItem]:
         """Score based on how often client appears in top 3."""
-        items = []
-        
         total_questions = len(results)
         client_mentions = 0
         client_top_3 = 0
-        
+
         for res in results:
             rankings = res["rankings"]
             client_rank = next((r for r in rankings if r["name"] == self.context.company_name), None)
-            
+
             if client_rank and client_rank["mentioned"]:
                 client_mentions += 1
                 if client_rank["rank"] <= 3:
                     client_top_3 += 1
-                    
-                items.append(ScoreItem(
-                    name=f"Query: {res['question'][:30]}...",
-                    description="Client visibility in LLM results",
-                    actual_points=10 if client_rank["rank"] <= 3 else 5,
-                    max_points=10,
-                    notes=f"Ranked #{client_rank['rank']}",
-                    recommendation="Optimize brand presence in technical documentation and reviews." if client_rank['rank'] > 3 else "Maintain authority."
-                ))
-            else:
-                items.append(ScoreItem(
-                    name=f"Query: {res['question'][:30]}...",
-                    description="Client visibility in LLM results",
-                    actual_points=0,
-                    max_points=10,
-                    notes="Not mentioned",
-                    recommendation="Critical: Develop content specifically answering this question."
-                ))
-                
+
+        # Calculate aggregate score: weight mentions and top-3 placement
+        if total_questions > 0:
+            mention_ratio = client_mentions / total_questions
+            top3_ratio = client_top_3 / total_questions
+            # Score out of 100: 40% for mentions, 60% for top-3 placement
+            actual = int((mention_ratio * 40) + (top3_ratio * 60))
+        else:
+            actual = 0
+
+        recommendation = ""
+        if client_mentions == 0:
+            recommendation = "Critical: Brand not mentioned in any AI-generated responses. Develop authoritative content (documentation, reviews, thought leadership) targeting key buying queries."
+        elif client_top_3 < total_questions:
+            recommendation = "Optimize brand presence in technical documentation, review sites, and industry publications to improve AI visibility ranking."
+
+        items = [ScoreItem(
+            name="Overall Prompt Visibility",
+            description="Aggregate visibility across key buying questions",
+            actual_points=actual,
+            max_points=100,
+            notes=f"Mentioned in {client_mentions}/{total_questions} queries, Top 3 in {client_top_3}",
+            recommendation=recommendation
+        )]
+
         return items
 
     def _generate_summary(self, results: List[Dict]) -> str:

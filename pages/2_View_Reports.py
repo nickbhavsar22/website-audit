@@ -72,7 +72,7 @@ if selected_client:
         col2.markdown(f"**Last Modified:** {modified}")
 
         # Inline HTML report
-        components.html(html_content, height=800, scrolling=True)
+        components.html(html_content, height=2000, scrolling=True)
 
         st.download_button(
             "Download Report",

@@ -24,6 +24,12 @@ class PositioningAgent(BaseAgent):
     agent_description = "Analyzes positioning and messaging effectiveness"
     dependencies = ["website"]  # Needs crawled pages
     weight = 2.0  # Double weight for positioning
+    expected_llm_fields = {
+        "scores": dict,
+        "jtbd_analysis": dict,
+        "messaging_house": dict,
+        "analysis": str
+    }
 
     def _generate_cot_plan(self) -> str:
         """Generate Chain of Thought plan."""
@@ -60,6 +66,32 @@ class PositioningAgent(BaseAgent):
                 page_content=page_content,
                 max_tokens=4000
             )
+
+            # Validate and patch missing fields
+            result = self._validate_llm_response(result)
+
+            # Ensure JTBD fields have sensible defaults
+            jtbd = result.get("jtbd_analysis", {})
+            if not jtbd.get("functional_job"):
+                jtbd["functional_job"] = "Not clearly articulated on the website"
+            if not jtbd.get("emotional_job"):
+                jtbd["emotional_job"] = "Not clearly articulated on the website"
+            result["jtbd_analysis"] = jtbd
+
+            # Ensure messaging house has defaults
+            mh = result.get("messaging_house", {})
+            if not mh.get("core_pillar"):
+                mh["core_pillar"] = "No clear umbrella message identified"
+            result["messaging_house"] = mh
+
+            # Ensure recommended_assets has defaults if empty
+            assets = jtbd.get("recommended_assets", [])
+            if not assets:
+                jtbd["recommended_assets"] = [
+                    {"type": "Case Study", "description": "Customer success story demonstrating core value proposition"},
+                    {"type": "Comparison Guide", "description": "Side-by-side comparison against key alternatives"},
+                    {"type": "ROI Calculator", "description": "Interactive tool quantifying business outcomes"}
+                ]
 
             # Build score items from LLM response
             score_mapping = {

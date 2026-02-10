@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 import asyncio
+import logging
 
 import sys
 from pathlib import Path
@@ -12,6 +13,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from orchestrator.context_store import ContextStore, AgentAnalysis, AgentStatus
 from utils.llm_client import LLMClient
 from utils.scoring import ModuleScore
+
+logger = logging.getLogger(__name__)
 
 
 class BaseAgent(ABC):
@@ -31,6 +34,7 @@ class BaseAgent(ABC):
     agent_description: str = "Base agent"
     dependencies: List[str] = []  # Other agents that must complete first
     weight: float = 1.0  # Scoring weight for this module
+    expected_llm_fields: Dict[str, type] = {}  # Subclasses override for validation
 
     def __init__(self, context: ContextStore, llm_client: Optional[LLMClient] = None, verbose: bool = False):
         """
@@ -152,6 +156,38 @@ class BaseAgent(ABC):
         """
         return f"Analyzing {self.agent_name} for {self.context.company_name}..."
 
+    def _validate_llm_response(self, result: dict) -> dict:
+        """
+        Validate LLM response against expected_llm_fields and patch missing fields with defaults.
+
+        Args:
+            result: The parsed LLM JSON response
+
+        Returns:
+            The patched result dict with defaults for any missing fields
+        """
+        if not self.expected_llm_fields:
+            return result
+
+        _, missing_fields = self.llm.validate_response(result, self.expected_llm_fields)
+
+        if missing_fields:
+            logger.warning(
+                "[%s] LLM response missing fields: %s. Patching with defaults.",
+                self.agent_name, ', '.join(missing_fields)
+            )
+            type_defaults = {str: "", dict: {}, list: [], int: 0, float: 0.0, bool: False}
+            for field_name in missing_fields:
+                expected_type = self.expected_llm_fields[field_name]
+                default_value = type_defaults.get(expected_type, "")
+                if field_name not in result or result[field_name] is None:
+                    result[field_name] = default_value
+                # If it exists but is wrong type, also patch
+                elif not isinstance(result[field_name], expected_type):
+                    result[field_name] = default_value
+
+        return result
+
     def self_audit(self) -> bool:
         """
         Review the agent's own results for quality.
@@ -167,17 +203,13 @@ class BaseAgent(ABC):
 
         score = self.analysis.module_score
 
-        # Check that we have score items
-        if not score.items:
+        # Check that we have at least 1 score item
+        if not score.items or len(score.items) < 1:
             return False
 
-        # Check that we have analysis text
+        # Check that we have analysis text of at least 50 chars
         if not score.analysis_text or len(score.analysis_text) < 50:
             return False
-
-        # Check legacy business_impact
-        # (New constraint: Ensure recommendations have business impact)
-        # We enforce this in the specific agents, but base can check if any exist
 
         return True
 
@@ -222,7 +254,7 @@ class BaseAgent(ABC):
         page = self.context.get_page(url)
         return page.raw_text if page else None
 
-    def get_all_pages_content(self, max_chars: int = 15000) -> str:
+    def get_all_pages_content(self, max_chars: int = 25000) -> str:
         """Helper to aggregate content from all pages."""
         content_parts = []
         total_chars = 0
@@ -231,7 +263,7 @@ class BaseAgent(ABC):
             page_content = f"\n--- PAGE: {url} ---\nTitle: {page.title}\n"
             page_content += f"H1: {', '.join(page.h1_tags)}\n"
             page_content += f"H2: {', '.join(page.h2_tags[:5])}\n"
-            page_content += f"Content: {page.raw_text[:2500]}\n"
+            page_content += f"Content: {page.raw_text[:5000]}\n"
 
             if total_chars + len(page_content) > max_chars:
                 break
@@ -241,7 +273,7 @@ class BaseAgent(ABC):
 
         return '\n'.join(content_parts)
 
-    def get_priority_pages_content(self, max_chars: int = 15000) -> str:
+    def get_priority_pages_content(self, max_chars: int = 25000) -> str:
         """Helper to get content from priority pages only."""
         priority_patterns = ['', 'about', 'product', 'solutions', 'pricing', 'why', 'platform', 'features']
         content_parts = []
@@ -256,7 +288,7 @@ class BaseAgent(ABC):
                 page_content = f"\n--- PAGE: {url} ---\nTitle: {page.title}\n"
                 page_content += f"H1: {', '.join(page.h1_tags)}\n"
                 page_content += f"H2: {', '.join(page.h2_tags[:5])}\n"
-                page_content += f"Content: {page.raw_text[:3000]}\n"
+                page_content += f"Content: {page.raw_text[:6000]}\n"
 
                 if total_chars + len(page_content) > max_chars:
                     break
@@ -265,6 +297,40 @@ class BaseAgent(ABC):
                 total_chars += len(page_content)
 
         return '\n'.join(content_parts)
+
+    def get_structured_page_content(self, url: str, max_chars: int = 8000) -> str:
+        """Get structured content from a single page."""
+        page = self.context.get_page(url)
+        if not page:
+            return ""
+
+        parts = []
+        parts.append(f"## {page.title}")
+        parts.append(f"**URL:** {url}")
+        parts.append(f"**Meta:** {page.meta_description}")
+
+        parts.append("### Headings")
+        for h in page.h1_tags:
+            parts.append(f"H1: {h}")
+        for h in page.h2_tags[:10]:
+            parts.append(f"H2: {h}")
+        for h in page.h3_tags[:10]:
+            parts.append(f"H3: {h}")
+
+        parts.append("### Content")
+        remaining = max_chars - len('\n'.join(parts))
+        parts.append(page.raw_text[:max(remaining, 1000)])
+
+        parts.append("### CTAs")
+        for cta in page.ctas[:10]:
+            parts.append(f"- {cta.get('text', '')} ({cta.get('tag', '')})")
+
+        parts.append("### Forms")
+        for form in page.forms[:5]:
+            fields = ', '.join(form.get('fields', [])[:5])
+            parts.append(f"- {form.get('field_count', 0)} fields: {fields}")
+
+        return '\n'.join(parts)
 
     async def revise(self, feedback: str, suggestions: List[str]) -> ModuleScore:
         """
