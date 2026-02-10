@@ -218,7 +218,7 @@ if submitted:
         ]:
             st.session_state.pop(key, None)
 
-        st.session_state["audit_config"] = config
+        st.session_state["audit_cfg"] = config
         st.session_state["audit_max_pages"] = max_pages
         st.session_state["audit_running"] = True
 
@@ -227,7 +227,7 @@ if submitted:
 # ---------------------------------------------------------------------------
 
 if st.session_state.get("audit_running") and not st.session_state.get("audit_complete"):
-    config = st.session_state.get("audit_config", {})
+    config = st.session_state.get("audit_cfg", {})
     max_pg = st.session_state.get("audit_max_pages", 20)
 
     # Detect Playwright
@@ -353,7 +353,7 @@ if st.session_state.get("audit_complete"):
                 "audit_error",
                 "audit_html",
                 "audit_report_path",
-                "audit_config",
+                "audit_cfg",
                 "audit_max_pages",
             ]:
                 st.session_state.pop(key, None)
@@ -371,7 +371,7 @@ if st.session_state.get("audit_error") and not st.session_state.get("audit_compl
             "audit_error",
             "audit_html",
             "audit_report_path",
-            "audit_config",
+            "audit_cfg",
             "audit_max_pages",
         ]:
             st.session_state.pop(key, None)
