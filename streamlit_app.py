@@ -58,11 +58,22 @@ st.set_page_config(
 )
 
 # ---------------------------------------------------------------------------
+# Brand CSS
+# ---------------------------------------------------------------------------
+
+from utils.brand import inject_brand_css
+
+inject_brand_css()
+
+# ---------------------------------------------------------------------------
 # Sidebar
 # ---------------------------------------------------------------------------
 
 with st.sidebar:
-    st.title("Bhavsar Growth Consulting")
+    st.image(
+        str(PROJECT_ROOT / "assets" / "logos" / "analyst" / "uploaded_media_0_1770143545255.png"),
+        use_container_width=True,
+    )
     st.caption("B2B SaaS Website Audit Tool")
     st.divider()
 
@@ -106,11 +117,11 @@ with st.sidebar:
 # Main content - Landing page
 # ---------------------------------------------------------------------------
 
-st.title("Website Audit Tool")
+st.title("Identify & Eliminate GTM Friction")
 st.markdown(
-    "Run comprehensive marketing audits for B2B SaaS websites. "
-    "The agentic system crawls, analyzes, and scores your web presence across "
-    "positioning, SEO, conversion, content, trust, and more."
+    "15 autonomous agents crawl, analyze, and score your B2B SaaS web presence "
+    "across positioning, SEO, conversion, content, trust, and competitive landscape. "
+    "Every finding maps to a specific action. Every score has a fix."
 )
 
 st.divider()
@@ -138,19 +149,19 @@ col3.metric("Audit Modules", 15)
 st.divider()
 
 # Quick-start guide
-st.subheader("Getting Started")
+st.subheader("How It Works")
 
 st.markdown(
     """
-**1. New Audit** -- Go to the *New Audit* page to configure and run a website audit.
-Fill in the company details, set your crawl parameters, and click **Start Audit**.
-The tool will crawl the site, run 15 specialist agents in parallel, and generate a
-scored HTML report you can download.
+**1. Run an Audit** --- Enter the target URL, hit **Start Audit**, and step back.
+The system crawls the site, deploys 15 specialist agents in parallel, cross-validates
+findings through a quality review layer, and delivers a scored HTML report.
 
-**2. View Reports** -- Browse previously generated audit reports organized by client.
-View the full HTML report inline or download it for sharing.
+**2. Review the Report** --- Every module produces a percentage score, an outcome
+rating, and prioritized recommendations. The strategic friction point identifies
+the single highest-leverage fix for pipeline impact.
 
-**3. Client Manager** -- Create and manage client configuration files so you can
-re-run audits quickly without re-entering details.
+**3. Manage Clients** --- Save client configurations for rapid re-audits.
+Track score changes over time as fixes are implemented.
 """
 )

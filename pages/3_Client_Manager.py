@@ -13,6 +13,9 @@ sys.path.insert(0, str(PROJECT_ROOT))
 
 st.set_page_config(page_title="Client Manager", page_icon="\U0001f4c1", layout="wide")
 
+from utils.brand import inject_brand_css
+inject_brand_css()
+
 st.header("Client Manager")
 
 clients_dir = PROJECT_ROOT / "clients"

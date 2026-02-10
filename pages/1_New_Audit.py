@@ -8,7 +8,6 @@ import time
 import queue
 import asyncio
 import threading
-import tempfile
 from pathlib import Path
 from datetime import datetime
 
@@ -32,7 +31,20 @@ def _load_env():
 
 _load_env()
 
+# Also bridge Streamlit Cloud secrets into os.environ
+try:
+    for _k in ("ANTHROPIC_API_KEY", "GEMINI_API_KEY", "GAMMA_API_KEY", "LLM_PROVIDER"):
+        if _k not in os.environ:
+            _v = st.secrets.get(_k)
+            if _v:
+                os.environ[_k] = _v
+except Exception:
+    pass
+
 st.set_page_config(page_title="New Audit", page_icon="\U0001f680", layout="wide")
+
+from utils.brand import inject_brand_css
+inject_brand_css()
 
 # ---------------------------------------------------------------------------
 # Phase-to-progress mapping
@@ -56,7 +68,7 @@ PHASE_PROGRESS = {
 # Section A: Configuration form
 # ---------------------------------------------------------------------------
 
-st.header("New Website Audit")
+st.header("Launch a New Audit")
 
 with st.form("audit_config"):
     col1, col2 = st.columns(2)
@@ -93,7 +105,7 @@ with st.form("audit_config"):
 # ---------------------------------------------------------------------------
 
 
-def _validate_inputs(name: str, url: str) -> str | None:
+def _validate_inputs(name: str, url: str):
     """Return an error message string, or None if valid."""
     if not name.strip():
         return "Company Name is required."
@@ -105,7 +117,7 @@ def _validate_inputs(name: str, url: str) -> str | None:
 
 
 # ---------------------------------------------------------------------------
-# Section B: Audit execution with progress
+# Audit thread function -- serializes results for session_state safety
 # ---------------------------------------------------------------------------
 
 
@@ -119,24 +131,15 @@ def _run_audit(config: dict, max_pages: int, progress_queue: queue.Queue):
         def progress_callback(phase, status, detail=""):
             progress_queue.put({"phase": phase, "status": status, "detail": detail})
 
-        # Setup context
         progress_queue.put(
             {"phase": "Extracting Logos", "status": "started", "detail": "Building context..."}
         )
         context = setup_context_from_config(config, max_pages)
 
-        # Skip screenshot capture when Playwright is unavailable
-        skip_screenshots = False
-        try:
-            import playwright  # noqa: F401
-        except ImportError:
-            skip_screenshots = True
-
-        # Extract logos (may fail gracefully)
         try:
             extract_logos(context)
         except Exception:
-            pass  # Logos are nice-to-have, not critical
+            pass
 
         progress_queue.put(
             {"phase": "Extracting Logos", "status": "completed", "detail": "Context ready"}
@@ -147,7 +150,6 @@ def _run_audit(config: dict, max_pages: int, progress_queue: queue.Queue):
             context, llm_client, verbose=False, progress_callback=progress_callback
         )
 
-        # Run async audit in a fresh event loop
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         try:
@@ -173,23 +175,58 @@ def _run_audit(config: dict, max_pages: int, progress_queue: queue.Queue):
         with open(report_path, "r", encoding="utf-8") as f:
             html_content = f.read()
 
-        progress_queue.put(
-            {
-                "phase": "Complete",
-                "status": "completed",
-                "detail": "Audit finished!",
-                "report": report,
-                "context": context,
-                "html_content": html_content,
-                "report_path": report_path,
+        # --- Serialize into plain dicts/strings that survive session_state ---
+        modules = []
+        for m in report.modules:
+            modules.append({
+                "name": m.name,
+                "percentage": round(m.percentage, 0),
+                "weight": m.weight,
+                "outcome": m.outcome.value if hasattr(m.outcome, "value") else str(m.outcome),
+            })
+
+        quick_wins = []
+        for w in report.get_quick_wins(3):
+            quick_wins.append(w.recommendation)
+
+        friction_data = None
+        friction = getattr(report, "strategic_friction", None)
+        if friction:
+            friction_data = {
+                "title": friction.title,
+                "description": friction.description,
+                "primary_symptom": friction.primary_symptom,
+                "business_impact": friction.business_impact,
             }
-        )
+
+        result_data = {
+            "company_name": report.company_name,
+            "overall_percentage": round(report.overall_percentage, 1),
+            "overall_outcome": report.overall_outcome.value if hasattr(report.overall_outcome, "value") else str(report.overall_outcome),
+            "recommendation_count": len(report.get_all_recommendations()),
+            "modules": modules,
+            "quick_wins": quick_wins,
+            "friction": friction_data,
+            "html_content": html_content,
+        }
+
+        progress_queue.put({
+            "phase": "Complete",
+            "status": "completed",
+            "detail": "Audit finished!",
+            "result": result_data,
+        })
 
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         progress_queue.put({"phase": "Error", "status": "failed", "detail": str(e)})
 
 
-# Handle form submission
+# ---------------------------------------------------------------------------
+# Handle form submission -- start audit thread ONCE
+# ---------------------------------------------------------------------------
+
 if submitted:
     error = _validate_inputs(company_name, company_website)
     if error:
@@ -206,56 +243,52 @@ if submitted:
             "audit_date": datetime.now().strftime("%m-%d-%Y"),
         }
 
-        # Reset any previous audit state
-        for key in [
-            "audit_report",
-            "audit_context",
-            "audit_complete",
-            "audit_running",
-            "audit_error",
-            "audit_html",
-            "audit_report_path",
-        ]:
-            st.session_state.pop(key, None)
+        # Reset previous state
+        for key in list(st.session_state.keys()):
+            if key.startswith("audit_"):
+                st.session_state.pop(key, None)
 
-        st.session_state["audit_cfg"] = config
-        st.session_state["audit_max_pages"] = max_pages
+        # Create queue and thread, store in session_state so reruns reuse them
+        pq = queue.Queue()
+        t = threading.Thread(target=_run_audit, args=(config, max_pages, pq), daemon=True)
+        t.start()
+
+        st.session_state["audit_queue"] = pq
+        st.session_state["audit_thread"] = t
         st.session_state["audit_running"] = True
+        st.session_state["audit_last_pct"] = 0.0
+        st.session_state["audit_last_phase"] = "Initializing"
+        st.rerun()
 
 # ---------------------------------------------------------------------------
-# Progress polling (runs when audit is active)
+# Progress polling (non-blocking, rerun-safe)
 # ---------------------------------------------------------------------------
 
 if st.session_state.get("audit_running") and not st.session_state.get("audit_complete"):
-    config = st.session_state.get("audit_cfg", {})
-    max_pg = st.session_state.get("audit_max_pages", 20)
+    pq = st.session_state.get("audit_queue")
+    thread = st.session_state.get("audit_thread")
+
+    if pq is None or thread is None:
+        st.error("Audit state was lost. Please start a new audit.")
+        st.session_state["audit_running"] = False
+        st.stop()
 
     # Detect Playwright
     try:
         import playwright  # noqa: F401
     except ImportError:
-        st.info("Screenshots disabled (Playwright not available in this environment).")
+        st.info("Screenshots disabled (Playwright not available).")
 
-    progress_bar = st.progress(0, text="Initializing audit...")
-    status_text = st.empty()
+    last_pct = st.session_state.get("audit_last_pct", 0.0)
+    last_phase = st.session_state.get("audit_last_phase", "Initializing")
 
-    pq = queue.Queue()
-
-    thread = threading.Thread(target=_run_audit, args=(config, max_pg, pq), daemon=True)
-    thread.start()
-
-    last_pct = 0.0
+    # Drain all available messages (non-blocking)
+    done = False
     while True:
         try:
-            msg = pq.get(timeout=1.0)
+            msg = pq.get_nowait()
         except queue.Empty:
-            if not thread.is_alive():
-                # Thread died without sending Complete or Error
-                if not st.session_state.get("audit_complete"):
-                    st.error("Audit thread terminated unexpectedly.")
-                    st.session_state["audit_running"] = False
-                break
-            continue
+            break
 
         phase = msg.get("phase", "")
         detail = msg.get("detail", "")
@@ -264,74 +297,86 @@ if st.session_state.get("audit_running") and not st.session_state.get("audit_com
         pct = PHASE_PROGRESS.get(phase, last_pct)
         if pct > last_pct:
             last_pct = pct
-        progress_bar.progress(min(last_pct, 1.0), text=f"{phase}: {detail}")
-        status_text.caption(f"Status: {phase} -- {detail}")
+        last_phase = phase
 
         if status == "failed":
             st.session_state["audit_running"] = False
             st.session_state["audit_error"] = detail
-            st.error(f"Audit failed: {detail}")
-            break
+            st.rerun()
 
         if phase == "Complete" and status == "completed":
-            st.session_state["audit_report"] = msg.get("report")
-            st.session_state["audit_context"] = msg.get("context")
-            st.session_state["audit_html"] = msg.get("html_content", "")
-            st.session_state["audit_report_path"] = msg.get("report_path", "")
+            st.session_state["audit_result"] = msg.get("result", {})
             st.session_state["audit_complete"] = True
             st.session_state["audit_running"] = False
-            progress_bar.progress(1.0, text="Audit complete!")
+            done = True
             break
 
-    thread.join(timeout=5)
+    st.session_state["audit_last_pct"] = last_pct
+    st.session_state["audit_last_phase"] = last_phase
+
+    if done:
+        st.rerun()
+
+    # Show progress
+    st.progress(min(last_pct, 0.99), text=f"{last_phase}...")
+    st.caption("Agents deployed. Analyzing positioning, SEO, conversion, trust, and competitive landscape.")
+
+    # If thread still alive, wait and rerun to poll again
+    if thread.is_alive():
+        time.sleep(3)
+        st.rerun()
+    else:
+        if not st.session_state.get("audit_complete"):
+            st.error("Audit ended unexpectedly. Check the logs.")
+            st.session_state["audit_running"] = False
 
 # ---------------------------------------------------------------------------
-# Section C: Report display (persists across reruns via session_state)
+# Section C: Report display (uses simple serializable dicts)
 # ---------------------------------------------------------------------------
 
 if st.session_state.get("audit_complete"):
-    report = st.session_state.get("audit_report")
-    html_content = st.session_state.get("audit_html", "")
+    result = st.session_state.get("audit_result", {})
 
-    if report is None:
+    if not result:
         st.warning("Report data is unavailable. Please re-run the audit.")
     else:
-        st.success(f"Audit Complete: {report.company_name}")
+        st.success(f"Audit Complete --- {result['company_name']}")
 
         # Overall metrics
         col1, col2, col3 = st.columns(3)
-        col1.metric("Overall Score", f"{report.overall_percentage:.0f}%")
-        col2.metric("Grade", report.overall_outcome.value)
-        col3.metric("Recommendations", len(report.get_all_recommendations()))
+        col1.metric("Overall Score", f"{result['overall_percentage']:.0f}%")
+        col2.metric("Outcome", result["overall_outcome"])
+        col3.metric("Recommendations", result["recommendation_count"])
 
         # Module scores
         st.subheader("Module Scores")
-        num_modules = len(report.modules)
+        modules = result.get("modules", [])
         cols_per_row = 4
-        for row_start in range(0, num_modules, cols_per_row):
+        for row_start in range(0, len(modules), cols_per_row):
             cols = st.columns(cols_per_row)
-            for i, module in enumerate(report.modules[row_start : row_start + cols_per_row]):
+            for i, mod in enumerate(modules[row_start : row_start + cols_per_row]):
                 with cols[i]:
-                    weight_str = f" ({module.weight}x)" if module.weight > 1 else ""
-                    st.metric(f"{module.name}{weight_str}", f"{module.percentage:.0f}%")
+                    weight_str = f" ({mod['weight']}x)" if mod["weight"] > 1 else ""
+                    st.metric(f"{mod['name']}{weight_str}", f"{mod['percentage']:.0f}%")
 
         # Strategic friction point
-        friction = getattr(report, "strategic_friction", None)
+        friction = result.get("friction")
         if friction:
             st.subheader("Strategic Friction Point")
-            st.warning(f"**{friction.title}**: {friction.description}")
+            st.warning(f"**{friction['title']}**: {friction['description']}")
             fc1, fc2 = st.columns(2)
-            fc1.markdown(f"**Primary Symptom:** {friction.primary_symptom}")
-            fc2.markdown(f"**Business Impact:** {friction.business_impact}")
+            fc1.markdown(f"**Primary Symptom:** {friction['primary_symptom']}")
+            fc2.markdown(f"**Business Impact:** {friction['business_impact']}")
 
         # Quick wins
-        quick_wins = report.get_quick_wins(3)
-        if quick_wins:
+        wins = result.get("quick_wins", [])
+        if wins:
             st.subheader("Top Quick Wins")
-            for i, win in enumerate(quick_wins, 1):
-                st.markdown(f"**{i}.** {win.recommendation}")
+            for i, w in enumerate(wins, 1):
+                st.markdown(f"**{i}.** {w}")
 
         # Full HTML report
+        html_content = result.get("html_content", "")
         if html_content:
             st.subheader("Full Report")
             components.html(html_content, height=800, scrolling=True)
@@ -339,40 +384,22 @@ if st.session_state.get("audit_complete"):
             st.download_button(
                 "Download HTML Report",
                 html_content,
-                file_name=f"{report.company_name}_audit.html",
+                file_name=f"{result['company_name']}_audit.html",
                 mime="text/html",
             )
 
         # Reset button
         if st.button("Run Another Audit"):
-            for key in [
-                "audit_report",
-                "audit_context",
-                "audit_complete",
-                "audit_running",
-                "audit_error",
-                "audit_html",
-                "audit_report_path",
-                "audit_cfg",
-                "audit_max_pages",
-            ]:
-                st.session_state.pop(key, None)
+            for key in list(st.session_state.keys()):
+                if key.startswith("audit_"):
+                    st.session_state.pop(key, None)
             st.rerun()
 
-# Show error state if audit failed without results
+# Show error state
 if st.session_state.get("audit_error") and not st.session_state.get("audit_complete"):
     st.error(f"Last audit failed: {st.session_state['audit_error']}")
     if st.button("Clear Error and Try Again"):
-        for key in [
-            "audit_report",
-            "audit_context",
-            "audit_complete",
-            "audit_running",
-            "audit_error",
-            "audit_html",
-            "audit_report_path",
-            "audit_cfg",
-            "audit_max_pages",
-        ]:
-            st.session_state.pop(key, None)
+        for key in list(st.session_state.keys()):
+            if key.startswith("audit_"):
+                st.session_state.pop(key, None)
         st.rerun()

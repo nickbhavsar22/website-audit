@@ -13,7 +13,10 @@ sys.path.insert(0, str(PROJECT_ROOT))
 
 st.set_page_config(page_title="View Reports", page_icon="\U0001f4ca", layout="wide")
 
-st.header("Past Audit Reports")
+from utils.brand import inject_brand_css
+inject_brand_css()
+
+st.header("Audit Reports")
 
 clients_dir = PROJECT_ROOT / "clients"
 
