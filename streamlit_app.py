@@ -37,6 +37,16 @@ def load_env_file():
 
 load_env_file()
 
+# Also load Streamlit Cloud secrets into os.environ so the entire app can use them
+try:
+    for key in ("ANTHROPIC_API_KEY", "GEMINI_API_KEY", "GAMMA_API_KEY", "LLM_PROVIDER"):
+        if key not in os.environ:
+            val = st.secrets.get(key)
+            if val:
+                os.environ[key] = val
+except Exception:
+    pass  # st.secrets unavailable (local dev without secrets.toml)
+
 # ---------------------------------------------------------------------------
 # Page config
 # ---------------------------------------------------------------------------
@@ -56,13 +66,22 @@ with st.sidebar:
     st.caption("B2B SaaS Website Audit Tool")
     st.divider()
 
-    # LLM status
-    provider = os.environ.get("LLM_PROVIDER", "anthropic").lower()
+    # LLM status — check both os.environ and st.secrets (Streamlit Cloud)
+    def _get_secret(key, default=None):
+        val = os.environ.get(key)
+        if not val:
+            try:
+                val = st.secrets.get(key)
+            except Exception:
+                pass
+        return val or default
+
+    provider = _get_secret("LLM_PROVIDER", "anthropic").lower()
     if provider == "gemini":
-        api_key_available = bool(os.environ.get("GEMINI_API_KEY"))
+        api_key_available = bool(_get_secret("GEMINI_API_KEY"))
         provider_label = "Gemini"
     else:
-        api_key_available = bool(os.environ.get("ANTHROPIC_API_KEY"))
+        api_key_available = bool(_get_secret("ANTHROPIC_API_KEY"))
         provider_label = "Anthropic"
 
     if api_key_available:
